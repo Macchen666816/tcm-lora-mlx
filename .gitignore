@@ -14,6 +14,11 @@ outputs/qwen25-lora-safety/*
 !outputs/qwen25-lora-safety/adapters.safetensors
 !outputs/qwen25-lora-safety/adapter_config.json
 
+# RAG microservice runtime artifacts (rebuildable from MySQL seed data).
+rag_service/index/
+*.log
+.env
+
 # Temporary experiments and copied reference project.
 data_smoke/
 第1组-Qwen的电商客服/
