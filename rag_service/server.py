@@ -33,7 +33,7 @@ import traceback
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 if __package__:
     from . import config
@@ -64,7 +64,12 @@ class RagRuntime:
             config.EMBED_MODEL_NAME, config.EMBED_DEVICE, config.EMBED_BATCH_SIZE
         )
         self.repository = DocumentRepository()
-        self.store = VectorStore(config.INDEX_DIR, self.embedder)
+        self.store = VectorStore(
+            config.INDEX_DIR,
+            self.embedder,
+            lexical_weight=config.LEXICAL_WEIGHT,
+            rrf_k=config.RRF_K,
+        )
         self.llm = LlmClient()
         self._lock = threading.Lock()
         self.index_info = self.rebuild()
@@ -80,14 +85,14 @@ class RagRuntime:
     def retrieve(self, query: str, top_k: int) -> dict:
         started = time.monotonic()
         with self._lock:
-            results = self.store.search(query, top_k)
-        results = [item for item in results if item["score"] >= config.MIN_SCORE]
+            results = self.store.search(query, top_k, min_vector_score=config.MIN_SCORE)
         return {
             "query": query,
             "results": results,
             "count": len(results),
             "latency_ms": round((time.monotonic() - started) * 1000),
             "index_backend": self.store.backend,
+            "retriever": self.store.retriever,
             "embedder_backend": self.embedder_backend,
             "min_score": config.MIN_SCORE,
         }
@@ -173,6 +178,7 @@ class RagRuntime:
             "service": "tcm-rag",
             "document_count": len(self.store.documents),
             "index_backend": self.store.backend,
+            "retriever": self.store.retriever,
             "embedder_backend": self.embedder_backend,
             "embedder_warning": self.embedder_warning,
             "database": self.repository.db_status,
@@ -234,6 +240,7 @@ class RagHandler(BaseHTTPRequestHandler):
         elif not self._authorized():
             self._json({"error": "Unauthorized"}, HTTPStatus.UNAUTHORIZED)
         elif path == "/documents":
+            full = "full" in parse_qs(urlparse(self.path).query)
             documents = RUNTIME.repository.list_documents()
             compact = [
                 {
@@ -244,6 +251,9 @@ class RagHandler(BaseHTTPRequestHandler):
                 }
                 for doc in documents
             ]
+            if full:  # 管理面板「查看」用：附带完整正文
+                for item, doc in zip(compact, documents):
+                    item["content"] = doc["content"]
             self._json({"documents": compact, "count": len(compact)})
         elif path.startswith("/traces/"):
             trace = RUNTIME.repository.get_trace(path.removeprefix("/traces/"))

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG 微服务管理面板</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <h1>RAG 微服务管理面板</h1>
+    <span class="sub">MySQL · FAISS · MiniLM</span>
+  </div>
+  <div id="ragTarget" class="target">—</div>
+</header>
+
+<main>
+  <!-- 服务状态 -->
+  <section class="card">
+    <div class="card-head">
+      <h2>服务状态</h2>
+      <button id="refreshHealth" class="btn ghost">刷新</button>
+    </div>
+    <div id="healthGrid" class="grid">
+      <div class="stat"><span class="label">服务</span><span class="value muted">检测中…</span></div>
+    </div>
+    <div id="healthError" class="alert hidden"></div>
+  </section>
+
+  <!-- 检索测试 -->
+  <section class="card">
+    <div class="card-head">
+      <h2>检索测试</h2>
+      <span class="hint">直接验证语义检索与增强提示词</span>
+    </div>
+    <div class="row">
+      <input id="searchInput" type="text" placeholder="输入一个中医问题，例如：孕妇用药有哪些禁忌？">
+      <input id="topK" type="number" min="1" max="8" value="3" title="top_k">
+      <button id="searchBtn" class="btn primary">检索</button>
+    </div>
+    <div id="searchMeta" class="meta hidden"></div>
+    <div id="searchResults" class="results"></div>
+    <div id="promptBox" class="prompt hidden">
+      <div class="prompt-head">
+        <span>增强后提示词（送入 LLM 前）</span>
+        <button id="copyPrompt" class="btn ghost small">复制</button>
+      </div>
+      <pre id="promptText"></pre>
+    </div>
+  </section>
+
+  <!-- 新增文档 -->
+  <section class="card">
+    <div class="card-head">
+      <h2>新增知识文档</h2>
+      <span class="hint">保存后自动写入 MySQL 并重建 FAISS 索引</span>
+    </div>
+    <div class="form">
+      <label>
+        <span>文档 ID <em>*</em><small>唯一标识，重复则覆盖更新</small></span>
+        <input id="docId" type="text" placeholder="例如：herb-bohe-001">
+      </label>
+      <label>
+        <span>标题 <em>*</em><small>通常是问题或药材名</small></span>
+        <input id="docTitle" type="text" placeholder="例如：薄荷的性味归经与功效">
+      </label>
+      <label>
+        <span>来源<small>可留空，默认 manual</small></span>
+        <input id="docSource" type="text" placeholder="例如：中药学教材 / 医师审核">
+      </label>
+      <label>
+        <span>正文 <em>*</em><small>向量化前存入 MySQL 的原文</small></span>
+        <textarea id="docContent" rows="6" placeholder="薄荷，辛，凉。归肺、肝经。疏散风热，清利头目，利咽，透疹，疏肝行气……"></textarea>
+      </label>
+      <div class="row">
+        <button id="saveDoc" class="btn primary">保存并重建索引</button>
+        <button id="clearDoc" class="btn ghost">清空</button>
+        <span id="saveState" class="save-state"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 文档列表 -->
+  <section class="card">
+    <div class="card-head">
+      <h2>知识文档</h2>
+      <div class="row tight">
+        <input id="docFilter" type="text" placeholder="按标题/ID 过滤">
+        <button id="reloadDocs" class="btn ghost">重新加载</button>
+        <button id="rebuildIndex" class="btn ghost">重建索引</button>
+      </div>
+    </div>
+    <div id="docCount" class="meta"></div>
+    <div id="docList" class="doc-list"></div>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/app.js"></script>
+</body>
+</html>

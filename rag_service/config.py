@@ -42,7 +42,11 @@ INDEX_DIR = Path(os.getenv("TCM_INDEX_DIR", str(RAG_DIR / "index")))
 
 # ---- 检索参数 ----
 DEFAULT_TOP_K = int(os.getenv("TCM_RAG_TOP_K", "3"))
-MIN_SCORE = float(os.getenv("TCM_RAG_MIN_SCORE", "0.30"))
+# 滤除阈值：语义分低于该值「且」无词汇命中才丢弃（混合检索下可放低）
+MIN_SCORE = float(os.getenv("TCM_RAG_MIN_SCORE", "0.20"))
+# 混合检索：词汇路（bigram BM25）在加权 RRF 中的权重与融合常数
+LEXICAL_WEIGHT = float(os.getenv("TCM_RAG_LEXICAL_WEIGHT", "4.0"))
+RRF_K = int(os.getenv("TCM_RAG_RRF_K", "60"))
 
 # ---- LLM（同伴 MacBook 上的 LoRA）----
 # mode:

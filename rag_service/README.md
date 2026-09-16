@@ -47,13 +47,44 @@ curl http://127.0.0.1:8090/generate -H "Content-Type: application/json" \
 |---|---|
 | `config.py` | 环境变量 / .env 配置 |
 | `embedder.py` | sentence-transformers 语义嵌入（降级：哈希嵌入） |
-| `vector_store.py` | FAISS 向量存取（降级：纯 Python 余弦） |
+| `vector_store.py` | FAISS 向量 + bigram BM25 混合检索（降级：纯 Python 余弦） |
 | `repository.py` | MySQL 持久层（文档 / trace / 输出；降级：内存） |
 | `llm_client.py` | 调用同伴 LoRA（webapp 或 OpenAI 兼容；降级：本地模拟） |
 | `server.py` | HTTP 服务入口 |
 | `smoke_test.py` | 冒烟测试（不起 HTTP 服务，直接测 Runtime） |
 
 建表 SQL：`database/init.sql`（库 `lora`，服务启动也会自动建）。
+
+## 检索方案：为什么不是纯向量
+
+`paraphrase-multilingual-MiniLM-L12-v2` 对「短查询 ↔ 长文档」的余弦值压缩严重
+（文档与自身标题仅 0.25），纯向量检索会让专有名词查询失效
+（实测：「薄荷能治什么？」命中不到刚录入的薄荷文档，排名第 13）。
+
+现方案 = **标题/正文分向量取最大 + 中文 bigram BM25 + 加权 RRF 融合**，
+同批查询命中排名 13 → 1。完整实验数据见 `docs/检索质量实测报告.md`，复现脚本：
+
+```bash
+env -u http_proxy -u https_proxy HF_HUB_OFFLINE=1 python scripts/eval_retrieval.py
+env -u http_proxy -u https_proxy HF_HUB_OFFLINE=1 python scripts/tune_retrieval.py
+```
+
+调参项：`TCM_RAG_LEXICAL_WEIGHT`（默认 4.0）、`TCM_RAG_RRF_K`（默认 60）、
+`TCM_RAG_MIN_SCORE`（默认 0.20，仅当语义弱且无词汇命中时才丢弃）。
+
+## 管理面板（独立前后端）
+
+`rag_console/` 是**独立于 webapp** 的小前后端（端口 8091），只服务 RAG 自己：
+服务状态、检索测试、**新增知识文档**、文档浏览。
+
+```bash
+env -u http_proxy -u https_proxy HF_HUB_OFFLINE=1 python rag_console/server.py --port 8091
+# 浏览器打开 http://127.0.0.1:8091
+```
+
+它通过 HTTP 反向代理调用 RAG 微服务（`--rag-url` 可指向任意实例），
+不直接依赖 `rag_service` 内部代码，微服务边界保持清晰。
+文档浏览/编辑/删除等完整 CRUD 留待后期并入 LoRA 前后端，本期只做「新增」。
 
 ## 降级兜底（三层，均如实标注不静默）
 
