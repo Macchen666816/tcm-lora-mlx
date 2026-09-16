@@ -1,0 +1,23 @@
+model: models/Qwen2.5-1.5B-Instruct/mlx-4bit
+train: true
+fine_tune_type: lora
+data: data_safety_alignment/mlx
+adapter_path: outputs/qwen25-lora-safety
+resume_adapter_file: outputs/qwen25-lora-full/adapters.safetensors
+
+batch_size: 2
+iters: 170
+max_seq_length: 512
+mask_prompt: true
+num_layers: 16
+learning_rate: 0.000005
+lora_parameters:
+  rank: 8
+  dropout: 0.0
+  scale: 20.0
+
+steps_per_report: 10
+steps_per_eval: 25
+val_batches: -1
+save_every: 50
+seed: 20260915

@@ -1,0 +1,6 @@
+*.safetensors binary
+*.docx binary
+*.pptx binary
+*.jsonl text eol=lf
+*.py text eol=lf
+*.md text eol=lf

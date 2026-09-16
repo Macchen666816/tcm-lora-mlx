@@ -1,0 +1,44 @@
+Loading configuration file 项目2：基于LoRA微调的中医医学专家大模型/training/qwen25_lora_safety.yaml
+Loading pretrained model
+Loading datasets
+Training
+Loading fine-tuned weights from 项目2：基于LoRA微调的中医医学专家大模型/outputs/qwen25-lora-full/adapters.safetensors
+Trainable parameters: 0.342% (5.276M/1543.714M)
+Starting training..., iters: 170
+Calculating loss...: 0it [00:00, ?it/s]Calculating loss...: 2it [00:00, 13.19it/s]Calculating loss...: 4it [00:00, 13.21it/s]Calculating loss...: 6it [00:00, 13.66it/s]Calculating loss...: 8it [00:00, 13.56it/s]Calculating loss...: 10it [00:00, 13.48it/s]Calculating loss...: 12it [00:00, 13.80it/s]Calculating loss...: 14it [00:01, 13.65it/s]Calculating loss...: 16it [00:01, 13.21it/s]Calculating loss...: 18it [00:01, 13.22it/s]Calculating loss...: 20it [00:01, 13.63it/s]Calculating loss...: 21it [00:01, 13.56it/s]
+Iter 1: Val loss 1.696, Val took 1.557s
+Iter 10: Train loss 1.616, Learning Rate 5.000e-06, It/sec 4.280, Tokens/sec 590.633, Trained Tokens 1380, Peak mem 2.862 GB
+Iter 20: Train loss 1.319, Learning Rate 5.000e-06, It/sec 4.583, Tokens/sec 692.442, Trained Tokens 2891, Peak mem 2.862 GB
+Calculating loss...: 0it [00:00, ?it/s]Calculating loss...: 2it [00:00, 12.41it/s]Calculating loss...: 4it [00:00, 12.96it/s]Calculating loss...: 6it [00:00, 13.68it/s]Calculating loss...: 8it [00:00, 14.03it/s]Calculating loss...: 10it [00:00, 13.77it/s]Calculating loss...: 12it [00:00, 14.07it/s]Calculating loss...: 14it [00:01, 14.28it/s]Calculating loss...: 16it [00:01, 14.00it/s]Calculating loss...: 18it [00:01, 13.79it/s]Calculating loss...: 20it [00:01, 14.04it/s]Calculating loss...: 21it [00:01, 13.80it/s]
+Iter 25: Val loss 1.629, Val took 1.523s
+Iter 30: Train loss 1.262, Learning Rate 5.000e-06, It/sec 4.381, Tokens/sec 723.363, Trained Tokens 4542, Peak mem 3.066 GB
+Iter 40: Train loss 1.471, Learning Rate 5.000e-06, It/sec 4.654, Tokens/sec 637.627, Trained Tokens 5912, Peak mem 3.066 GB
+Calculating loss...: 0it [00:00, ?it/s]Calculating loss...: 2it [00:00, 14.65it/s]Calculating loss...: 4it [00:00, 13.21it/s]Calculating loss...: 6it [00:00, 13.78it/s]Calculating loss...: 8it [00:00, 13.62it/s]Calculating loss...: 10it [00:00, 13.99it/s]Calculating loss...: 12it [00:00, 13.81it/s]Calculating loss...: 14it [00:01, 13.68it/s]Calculating loss...: 16it [00:01, 13.60it/s]Calculating loss...: 18it [00:01, 13.91it/s]Calculating loss...: 20it [00:01, 14.16it/s]Calculating loss...: 21it [00:01, 13.81it/s]
+Iter 50: Val loss 1.620, Val took 1.522s
+Iter 50: Train loss 1.716, Learning Rate 5.000e-06, It/sec 4.452, Tokens/sec 624.656, Trained Tokens 7315, Peak mem 3.066 GB
+Iter 50: Saved adapter weights to 项目2：基于LoRA微调的中医医学专家大模型/outputs/qwen25-lora-safety/adapters.safetensors and 项目2：基于LoRA微调的中医医学专家大模型/outputs/qwen25-lora-safety/0000050_adapters.safetensors.
+Iter 60: Train loss 1.513, Learning Rate 5.000e-06, It/sec 4.767, Tokens/sec 670.743, Trained Tokens 8722, Peak mem 3.066 GB
+Iter 70: Train loss 1.647, Learning Rate 5.000e-06, It/sec 4.275, Tokens/sec 686.921, Trained Tokens 10329, Peak mem 3.089 GB
+Calculating loss...: 0it [00:00, ?it/s]Calculating loss...: 2it [00:00, 14.84it/s]Calculating loss...: 4it [00:00, 14.71it/s]Calculating loss...: 6it [00:00, 14.65it/s]Calculating loss...: 8it [00:00, 14.66it/s]Calculating loss...: 10it [00:00, 14.19it/s]Calculating loss...: 12it [00:00, 13.53it/s]Calculating loss...: 14it [00:01, 13.50it/s]Calculating loss...: 16it [00:01, 13.45it/s]Calculating loss...: 18it [00:01, 13.76it/s]Calculating loss...: 20it [00:01, 13.65it/s]Calculating loss...: 21it [00:01, 13.81it/s]
+Iter 75: Val loss 1.598, Val took 1.523s
+Iter 80: Train loss 1.227, Learning Rate 5.000e-06, It/sec 4.821, Tokens/sec 698.574, Trained Tokens 11778, Peak mem 3.089 GB
+Iter 90: Train loss 1.252, Learning Rate 5.000e-06, It/sec 4.948, Tokens/sec 656.073, Trained Tokens 13104, Peak mem 3.089 GB
+Calculating loss...: 0it [00:00, ?it/s]Calculating loss...: 2it [00:00, 13.38it/s]Calculating loss...: 4it [00:00, 14.02it/s]Calculating loss...: 6it [00:00, 14.33it/s]Calculating loss...: 8it [00:00, 13.95it/s]Calculating loss...: 10it [00:00, 13.75it/s]Calculating loss...: 12it [00:00, 14.04it/s]Calculating loss...: 14it [00:01, 13.84it/s]Calculating loss...: 16it [00:01, 13.68it/s]Calculating loss...: 18it [00:01, 13.61it/s]Calculating loss...: 20it [00:01, 13.56it/s]Calculating loss...: 21it [00:01, 13.80it/s]
+Iter 100: Val loss 1.612, Val took 1.523s
+Iter 100: Train loss 1.310, Learning Rate 5.000e-06, It/sec 4.513, Tokens/sec 655.331, Trained Tokens 14556, Peak mem 3.089 GB
+Iter 100: Saved adapter weights to 项目2：基于LoRA微调的中医医学专家大模型/outputs/qwen25-lora-safety/adapters.safetensors and 项目2：基于LoRA微调的中医医学专家大模型/outputs/qwen25-lora-safety/0000100_adapters.safetensors.
+Iter 110: Train loss 1.352, Learning Rate 5.000e-06, It/sec 4.554, Tokens/sec 700.917, Trained Tokens 16095, Peak mem 3.089 GB
+Iter 120: Train loss 1.328, Learning Rate 5.000e-06, It/sec 4.719, Tokens/sec 606.373, Trained Tokens 17380, Peak mem 3.089 GB
+Calculating loss...: 0it [00:00, ?it/s]Calculating loss...: 2it [00:00, 14.54it/s]Calculating loss...: 4it [00:00, 13.81it/s]Calculating loss...: 6it [00:00, 13.59it/s]Calculating loss...: 8it [00:00, 13.52it/s]Calculating loss...: 10it [00:00, 13.91it/s]Calculating loss...: 12it [00:00, 14.15it/s]Calculating loss...: 14it [00:01, 13.51it/s]Calculating loss...: 16it [00:01, 13.86it/s]Calculating loss...: 18it [00:01, 14.09it/s]Calculating loss...: 20it [00:01, 13.45it/s]Calculating loss...: 21it [00:01, 13.74it/s]
+Iter 125: Val loss 1.592, Val took 1.530s
+Iter 130: Train loss 1.460, Learning Rate 5.000e-06, It/sec 4.537, Tokens/sec 622.899, Trained Tokens 18753, Peak mem 3.089 GB
+Iter 140: Train loss 1.277, Learning Rate 5.000e-06, It/sec 4.709, Tokens/sec 682.798, Trained Tokens 20203, Peak mem 3.089 GB
+Calculating loss...: 0it [00:00, ?it/s]Calculating loss...: 2it [00:00, 12.44it/s]Calculating loss...: 4it [00:00, 13.59it/s]Calculating loss...: 6it [00:00, 13.46it/s]Calculating loss...: 8it [00:00, 13.86it/s]Calculating loss...: 10it [00:00, 13.71it/s]Calculating loss...: 12it [00:00, 13.22it/s]Calculating loss...: 14it [00:01, 13.66it/s]Calculating loss...: 16it [00:01, 13.56it/s]Calculating loss...: 18it [00:01, 13.86it/s]Calculating loss...: 20it [00:01, 14.08it/s]Calculating loss...: 21it [00:01, 13.77it/s]
+Iter 150: Val loss 1.600, Val took 1.527s
+Iter 150: Train loss 1.236, Learning Rate 5.000e-06, It/sec 4.612, Tokens/sec 695.033, Trained Tokens 21710, Peak mem 3.089 GB
+Iter 150: Saved adapter weights to 项目2：基于LoRA微调的中医医学专家大模型/outputs/qwen25-lora-safety/adapters.safetensors and 项目2：基于LoRA微调的中医医学专家大模型/outputs/qwen25-lora-safety/0000150_adapters.safetensors.
+Iter 160: Train loss 1.357, Learning Rate 5.000e-06, It/sec 4.291, Tokens/sec 678.035, Trained Tokens 23290, Peak mem 3.089 GB
+Calculating loss...: 0it [00:00, ?it/s]Calculating loss...: 2it [00:00, 13.47it/s]Calculating loss...: 4it [00:00, 13.37it/s]Calculating loss...: 6it [00:00, 13.82it/s]Calculating loss...: 8it [00:00, 14.09it/s]Calculating loss...: 10it [00:00, 14.26it/s]Calculating loss...: 12it [00:00, 13.52it/s]Calculating loss...: 14it [00:01, 13.49it/s]Calculating loss...: 16it [00:01, 13.82it/s]Calculating loss...: 18it [00:01, 13.68it/s]Calculating loss...: 20it [00:01, 13.57it/s]Calculating loss...: 21it [00:01, 13.72it/s]
+Iter 170: Val loss 1.591, Val took 1.532s
+Iter 170: Train loss 1.112, Learning Rate 5.000e-06, It/sec 4.334, Tokens/sec 708.598, Trained Tokens 24925, Peak mem 3.092 GB
+Saved final weights to 项目2：基于LoRA微调的中医医学专家大模型/outputs/qwen25-lora-safety/adapters.safetensors.

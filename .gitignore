@@ -1,0 +1,20 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+~$*
+.venv*/
+models/
+
+# Only keep the final adapter and the two evidence logs.
+outputs/*
+!outputs/qwen25-lora-full-training.log
+!outputs/qwen25-lora-safety-training.log
+!outputs/qwen25-lora-safety/
+outputs/qwen25-lora-safety/*
+!outputs/qwen25-lora-safety/adapters.safetensors
+!outputs/qwen25-lora-safety/adapter_config.json
+
+# Temporary experiments and copied reference project.
+data_smoke/
+第1组-Qwen的电商客服/
+项目2：基于LoRA微调的中医医学专家大模型/

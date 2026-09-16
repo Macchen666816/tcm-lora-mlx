@@ -1,0 +1,41 @@
+{
+    "adapter_path": "\u9879\u76ee2\uff1a\u57fa\u4e8eLoRA\u5fae\u8c03\u7684\u4e2d\u533b\u533b\u5b66\u4e13\u5bb6\u5927\u6a21\u578b/outputs/qwen25-lora-safety",
+    "batch_size": 2,
+    "clear_cache_threshold": 0,
+    "config": "\u9879\u76ee2\uff1a\u57fa\u4e8eLoRA\u5fae\u8c03\u7684\u4e2d\u533b\u533b\u5b66\u4e13\u5bb6\u5927\u6a21\u578b/training/qwen25_lora_safety.yaml",
+    "data": "\u9879\u76ee2\uff1a\u57fa\u4e8eLoRA\u5fae\u8c03\u7684\u4e2d\u533b\u533b\u5b66\u4e13\u5bb6\u5927\u6a21\u578b/data_safety_alignment/mlx",
+    "fine_tune_type": "lora",
+    "grad_accumulation_steps": 1,
+    "grad_checkpoint": false,
+    "iters": 170,
+    "learning_rate": 5e-06,
+    "lora_parameters": {
+        "rank": 8,
+        "dropout": 0.0,
+        "scale": 20.0
+    },
+    "lr_schedule": null,
+    "mask_prompt": true,
+    "max_seq_length": 512,
+    "model": "models/Qwen2.5-1.5B-Instruct/mlx-4bit",
+    "num_layers": 16,
+    "optimizer": "adam",
+    "optimizer_config": {
+        "adam": {},
+        "adamw": {},
+        "muon": {},
+        "sgd": {},
+        "adafactor": {}
+    },
+    "project_name": null,
+    "report_to": null,
+    "resume_adapter_file": "\u9879\u76ee2\uff1a\u57fa\u4e8eLoRA\u5fae\u8c03\u7684\u4e2d\u533b\u533b\u5b66\u4e13\u5bb6\u5927\u6a21\u578b/outputs/qwen25-lora-full/adapters.safetensors",
+    "save_every": 50,
+    "seed": 20260915,
+    "steps_per_eval": 25,
+    "steps_per_report": 10,
+    "test": false,
+    "test_batches": 500,
+    "train": true,
+    "val_batches": -1
+}

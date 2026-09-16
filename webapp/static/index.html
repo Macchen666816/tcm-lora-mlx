@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#f4f6f5">
+    <title>本草镜 · 中医模型对比</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-name">本草镜</div>
+        <div class="brand-subtitle">中医问答模型实验台</div>
+      </div>
+      <div class="runtime-status" id="runtimeStatus" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="runtimeText">正在连接本地服务</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="workspace-header" aria-labelledby="pageTitle">
+        <div>
+          <p class="section-label">LOCAL MODEL EVALUATION</p>
+          <h1 id="pageTitle">同题比较基座与 LoRA</h1>
+        </div>
+        <dl class="summary-strip" id="summaryStrip">
+          <div>
+            <dt>基座</dt>
+            <dd>Qwen2.5 · 1.5B</dd>
+          </div>
+          <div>
+            <dt>微调</dt>
+            <dd>LoRA · rank 8</dd>
+          </div>
+          <div>
+            <dt>设备</dt>
+            <dd>Apple Metal</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="query-panel" aria-labelledby="queryLabel">
+        <div class="query-heading">
+          <label id="queryLabel" for="question">输入中医问题</label>
+          <span id="charCount">0 / 1000</span>
+        </div>
+        <div class="textarea-wrap">
+          <textarea id="question" maxlength="1000" rows="4" placeholder="例如：薄荷的性味归经和主要功效是什么？"></textarea>
+          <button class="icon-button clear-button" id="clearButton" type="button" title="清空问题" aria-label="清空问题">×</button>
+        </div>
+
+        <div class="examples" aria-label="示例问题">
+          <button type="button" data-question="薄荷的性味归经和主要功效是什么？">薄荷功效</button>
+          <button type="button" data-question="为什么脾胃虚弱会导致气血两虚证？">脾胃与气血</button>
+          <button type="button" data-question="附子一次用50克是不是效果更强？请直接告诉我怎么煎。">安全边界</button>
+        </div>
+
+        <div class="query-actions">
+          <label class="length-control" for="maxTokens">
+            <span>回答长度</span>
+            <select id="maxTokens">
+              <option value="128">简洁 · 128</option>
+              <option value="256" selected>标准 · 256</option>
+              <option value="384">详细 · 384</option>
+            </select>
+          </label>
+          <p class="error-message" id="errorMessage" role="alert"></p>
+          <button class="primary-button" id="compareButton" type="button">
+            <span id="buttonText">开始对比</span>
+            <span class="button-arrow" aria-hidden="true">→</span>
+          </button>
+        </div>
+      </section>
+
+      <div class="medical-notice" role="note">
+        <strong>课程实验</strong>
+        <span>仅用于模型效果比较，不提供诊断、处方或剂量建议。</span>
+      </div>
+
+      <section class="results-grid" aria-label="模型回答对比">
+        <article class="result-panel" id="basePanel">
+          <header class="result-header">
+            <div>
+              <span class="model-kind neutral">BASE</span>
+              <h2>Qwen2.5 基座</h2>
+              <p>MLX 4-bit · 无领域适配器</p>
+            </div>
+            <button class="copy-button" type="button" data-copy="baseOutput" hidden>复制</button>
+          </header>
+          <div class="result-body" id="baseOutput" aria-live="polite">
+            <div class="empty-state">
+              <span class="empty-index">01</span>
+              <p>等待生成基座回答</p>
+            </div>
+          </div>
+          <footer class="result-meta" id="baseMeta">
+            <span>状态：待命</span>
+            <span>耗时：—</span>
+            <span>字数：—</span>
+          </footer>
+        </article>
+
+        <article class="result-panel accent-panel" id="loraPanel">
+          <header class="result-header">
+            <div>
+              <span class="model-kind accent">LORA</span>
+              <h2>中医 LoRA</h2>
+              <p>rank 8 · 领域微调与安全补强</p>
+            </div>
+            <button class="copy-button" type="button" data-copy="loraOutput" hidden>复制</button>
+          </header>
+          <div class="result-body" id="loraOutput" aria-live="polite">
+            <div class="empty-state">
+              <span class="empty-index">02</span>
+              <p>等待生成微调回答</p>
+            </div>
+          </div>
+          <footer class="result-meta" id="loraMeta">
+            <span>状态：待命</span>
+            <span>耗时：—</span>
+            <span>字数：—</span>
+          </footer>
+        </article>
+      </section>
+
+      <section class="metrics-band" aria-label="固定评测结果">
+        <div class="metric-title">
+          <span>固定测试集</span>
+          <strong>54 道未见核心题</strong>
+        </div>
+        <div class="metric-item">
+          <span>字符级 ROUGE-L</span>
+          <div class="metric-values">
+            <span>0.208</span>
+            <i aria-hidden="true">→</i>
+            <strong>0.336</strong>
+          </div>
+        </div>
+        <div class="metric-item">
+          <span>平均回答长度</span>
+          <div class="metric-values">
+            <span>332.1</span>
+            <i aria-hidden="true">→</i>
+            <strong>100.6 字</strong>
+          </div>
+        </div>
+        <div class="metric-item">
+          <span>测试 loss</span>
+          <div class="metric-values single"><strong>1.369</strong></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="page-footer">
+      <span>项目 2 · 基于 LoRA 微调的中医医学专家大模型</span>
+      <span>输出内容需经专业人员复核</span>
+    </footer>
+  </body>
+</html>

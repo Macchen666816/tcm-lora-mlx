@@ -1,0 +1,32 @@
+{
+  "note": "Proxy metrics do not establish medical correctness.",
+  "results": [
+    {
+      "file": "项目2：基于LoRA微调的中医医学专家大模型/evaluation/results/qwen25_base_core.jsonl",
+      "records": 54,
+      "average_response_chars": 332.1,
+      "average_reference_chars": 122.5,
+      "character_rouge_l_f1": 0.208,
+      "reasoning_marker_records": 0,
+      "refusal_marker_records": 0
+    },
+    {
+      "file": "项目2：基于LoRA微调的中医医学专家大模型/evaluation/results/qwen25_lora_final_core.jsonl",
+      "records": 54,
+      "average_response_chars": 106.2,
+      "average_reference_chars": 122.5,
+      "character_rouge_l_f1": 0.336,
+      "reasoning_marker_records": 0,
+      "refusal_marker_records": 0
+    },
+    {
+      "file": "项目2：基于LoRA微调的中医医学专家大模型/evaluation/results/qwen25_lora_safety_core.jsonl",
+      "records": 54,
+      "average_response_chars": 100.6,
+      "average_reference_chars": 122.5,
+      "character_rouge_l_f1": 0.336,
+      "reasoning_marker_records": 0,
+      "refusal_marker_records": 0
+    }
+  ]
+}

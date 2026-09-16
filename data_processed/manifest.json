@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "generated_on": "2026-09-15",
+  "scope": "Chinese traditional medicine knowledge question answering",
+  "seed": 20260915,
+  "validation_ratio": 0.1,
+  "policy_reject_flags": [
+    "dosage_without_safety_language",
+    "latin_text_fragment",
+    "personal_medical_advice_without_safety_language",
+    "serious_condition_without_safety_language",
+    "toxic_herb_without_safety_language",
+    "unsafe_absolute_claim",
+    "unverified_research_claim",
+    "very_short_output",
+    "vulnerable_population_without_safety_language"
+  ],
+  "source_records": {
+    "train": 5628,
+    "test": 1408
+  },
+  "final_splits": {
+    "train": {
+      "records": 3061,
+      "topics": {
+        "acupuncture_and_meridians": 314,
+        "clinical_conditions": 377,
+        "general_tcm_knowledge": 70,
+        "materia_medica_and_formulas": 1892,
+        "modern_research": 13,
+        "syndromes_and_theory": 395
+      },
+      "output_chars": {
+        "min": 16,
+        "median": 106,
+        "p90": 179,
+        "max": 602
+      }
+    },
+    "valid": {
+      "records": 341,
+      "topics": {
+        "acupuncture_and_meridians": 35,
+        "clinical_conditions": 42,
+        "general_tcm_knowledge": 8,
+        "materia_medica_and_formulas": 210,
+        "modern_research": 2,
+        "syndromes_and_theory": 44
+      },
+      "output_chars": {
+        "min": 22,
+        "median": 109,
+        "p90": 175,
+        "max": 334
+      }
+    },
+    "test": {
+      "records": 850,
+      "topics": {
+        "acupuncture_and_meridians": 85,
+        "clinical_conditions": 101,
+        "general_tcm_knowledge": 20,
+        "materia_medica_and_formulas": 529,
+        "modern_research": 4,
+        "syndromes_and_theory": 111
+      },
+      "output_chars": {
+        "min": 22,
+        "median": 106,
+        "p90": 174,
+        "max": 354
+      }
+    }
+  },
+  "excluded_records": 2784,
+  "safety_quarantine_records": 663,
+  "research_quarantine_records": 976,
+  "medical_spotcheck_records": 237,
+  "core_benchmark_records": 54,
+  "exclusions_by_reason": {
+    "dedup:instruction": 11,
+    "dedup:output": 2,
+    "hard:document_style_task_mismatch": 28,
+    "hard:heading_only_task_mismatch": 112,
+    "hard:malformed_instruction": 10,
+    "hard:placeholder_output": 1,
+    "hard:title_only_task_mismatch": 140,
+    "leakage:instruction_overlap_with_train": 3,
+    "out_of_scope_task:extraction_classification": 551,
+    "out_of_scope_task:long_form_generation": 480,
+    "out_of_scope_task:rewriting_editing": 125,
+    "out_of_scope_task:title_generation": 555,
+    "policy:dosage_without_safety_language": 7,
+    "policy:latin_text_fragment": 47,
+    "policy:personal_medical_advice_without_safety_language": 385,
+    "policy:serious_condition_without_safety_language": 125,
+    "policy:toxic_herb_without_safety_language": 89,
+    "policy:unsafe_absolute_claim": 5,
+    "policy:unverified_research_claim": 976,
+    "policy:very_short_output": 72,
+    "policy:vulnerable_population_without_safety_language": 85
+  },
+  "source_sha256": {
+    "chinese_medical_train.jsonl": "c7232ae5ebfc7a3a2ccb0e16293db885760b44ebb4a99ef48a78c1f83b34726f",
+    "chinese_medical_test.jsonl": "16988b350d4e42f64633bbd32daeed643ccbf8ce8c35224608bfc8703d422afd"
+  },
+  "output_sha256": {
+    "mlx/train.jsonl": "80048a45f86a327b5b1762e5f8115aa776ed48d273ac1e76ba337dd60a935327",
+    "mlx/valid.jsonl": "9f11149f077678142022438d32fae0cef07cc92773b85a9f0e24c031da4bd30d",
+    "mlx/test.jsonl": "ca302193555fa09c930f564d25d583d4de9de81228b57f4a06f1b2924e26fbd2",
+    "alpaca/train.jsonl": "29af41559c330bf8c9a489f29a90442163c16c19c263574a88ee2f29b05288f3",
+    "alpaca/valid.jsonl": "029c45c041d8726ee2260a261f6230fb9e3850d31c6debfc34d62a3dc9315cef",
+    "alpaca/test.jsonl": "d83b3af0ef48b52c30d1af8622af8ef60d0a4e05e9b355a2ebf88df701bacac9",
+    "lineage.jsonl": "4d3a82d3feb98fd7d9cdf504f90dfdb9c79d23523614c303cc35140aa84ed620",
+    "excluded.jsonl": "18dd6a556309b3571b1b373908349977e3d411f1531208a27bc1445a47183cf1",
+    "safety_quarantine.jsonl": "77e9317785424c00b4ea6566cb9626e4433763209e1e11d01a8c2c8e954d3e17",
+    "research_quarantine.jsonl": "3b5c56e6e1cd87bba87b8c092ecaa35855cdf3c359e648dad37ad2b6109b25cc",
+    "medical_spotcheck.csv": "5da5ec3eb261b3be1aa685cedf292e70fccf075c2dca077ed3b1f84f82a6fc98",
+    "evaluation/core_benchmark.jsonl": "dba4ed35096eb6bcb9e5699923f90a61bfa8df0b964f88f876871449ab397978"
+  }
+}

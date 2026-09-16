@@ -1,0 +1,92 @@
+{
+  "total_records": 7036,
+  "splits": {
+    "train": {
+      "records": 5628,
+      "task_categories": {
+        "extraction_classification": 442,
+        "knowledge_qa": 4236,
+        "long_form_generation": 398,
+        "rewriting_editing": 104,
+        "title_generation": 448
+      },
+      "flags": {
+        "document_style_output": 61,
+        "document_style_task_mismatch": 23,
+        "dosage_question": 8,
+        "dosage_without_safety_language": 7,
+        "duplicate_output": 12,
+        "heading_only_output": 149,
+        "heading_only_task_mismatch": 92,
+        "latin_text_fragment": 37,
+        "malformed_instruction": 8,
+        "medical_advice": 993,
+        "medical_advice_without_safety_language": 780,
+        "personal_medical_advice": 396,
+        "personal_medical_advice_without_safety_language": 298,
+        "placeholder_output": 1,
+        "potentially_toxic_herb": 73,
+        "serious_condition": 127,
+        "serious_condition_without_safety_language": 91,
+        "short_output": 1000,
+        "title_only_output": 474,
+        "title_only_task_mismatch": 108,
+        "toxic_herb_without_safety_language": 67,
+        "unsafe_absolute_claim": 4,
+        "unverified_research_claim": 776,
+        "very_short_output": 60,
+        "vulnerable_population": 96,
+        "vulnerable_population_without_safety_language": 66
+      },
+      "qa_candidates": 4023,
+      "hard_exclusions": 230,
+      "review_queue": 1776
+    },
+    "test": {
+      "records": 1408,
+      "task_categories": {
+        "extraction_classification": 109,
+        "knowledge_qa": 1089,
+        "long_form_generation": 82,
+        "rewriting_editing": 21,
+        "title_generation": 107
+      },
+      "flags": {
+        "document_style_output": 15,
+        "document_style_task_mismatch": 5,
+        "dosage_question": 1,
+        "heading_only_output": 36,
+        "heading_only_task_mismatch": 20,
+        "latin_text_fragment": 10,
+        "malformed_instruction": 2,
+        "medical_advice": 250,
+        "medical_advice_without_safety_language": 197,
+        "personal_medical_advice": 112,
+        "personal_medical_advice_without_safety_language": 87,
+        "potentially_toxic_herb": 23,
+        "serious_condition": 43,
+        "serious_condition_without_safety_language": 34,
+        "short_output": 228,
+        "title_only_output": 111,
+        "title_only_task_mismatch": 32,
+        "toxic_herb_without_safety_language": 22,
+        "unsafe_absolute_claim": 1,
+        "unverified_research_claim": 200,
+        "very_short_output": 12,
+        "vulnerable_population": 31,
+        "vulnerable_population_without_safety_language": 19
+      },
+      "qa_candidates": 1033,
+      "hard_exclusions": 59,
+      "review_queue": 471
+    }
+  },
+  "configuration": {
+    "seed": 20260915,
+    "sample_per_group": 20,
+    "source_files": {
+      "train": "/Users/chenyixuan/Desktop/Study/大模型实训/实训项目选题/项目2：基于LoRA微调的中医医学专家大模型/data/chinese_medical_train.jsonl",
+      "test": "/Users/chenyixuan/Desktop/Study/大模型实训/实训项目选题/项目2：基于LoRA微调的中医医学专家大模型/data/chinese_medical_test.jsonl"
+    }
+  }
+}
