@@ -4,7 +4,7 @@ const state = { documents: [], prompt: '', stanceCounts: {} };
 
 const STANCE_LABEL = {
   aligned: { text: '同向', cls: 'aligned' },
-  ambiguous: { text: '模糊', cls: 'ambiguous' },
+  neutral: { text: '中立', cls: 'neutral' },
   opposed: { text: '反向', cls: 'opposed' },
 };
 
@@ -47,11 +47,13 @@ async function loadHealth() {
     const counts = data.stance_counts || {};
     const items = [
       ['服务状态', data.status === 'ok' ? '正常' : data.status, 'ok'],
-      ['知识文档', `${data.document_count} 条（同向 ${counts.aligned ?? 0} / 模糊 ${counts.ambiguous ?? 0} / 反向 ${counts.opposed ?? 0}）`, ''],
+      ['知识文档', `${data.document_count} 条（同向 ${counts.aligned ?? 0} / 中立 ${counts.neutral ?? 0} / 反向 ${counts.opposed ?? 0}）`, ''],
       ['数据库', data.database, data.database === 'connected' ? 'ok' : 'warn'],
       ['索引后端', data.index_backend, data.index_backend === 'faiss' ? 'ok' : 'warn'],
       ['检索方案', data.retriever || '—', ''],
       ['默认立场', data.default_stance || '—', data.default_stance === 'opposed' ? 'warn' : 'ok'],
+      ['对抗性立场', data.allow_opposed ? '已开启' : '未开启（opposed/all 需开启）',
+        data.allow_opposed ? 'warn' : 'ok'],
       ['嵌入模型', (data.embedder_backend || '').split('/').pop() || '—',
         (data.embedder_backend || '').includes('sentence-transformers') ? 'ok' : 'warn'],
       ['LLM 链路', data.llm_url || '—', (data.llm_url || '').includes('未配置') ? 'warn' : 'ok'],
@@ -111,7 +113,9 @@ async function runSearch() {
             <span class="result-title">[${item.rank}] ${stanceBadge(item.stance)} ${escapeHtml(item.title)}</span>
             <span class="score" title="向量余弦 · 融合分 · BM25词汇分">${dense} · ${fused} · ${lexical}</span>
           </div>
-          <div class="result-source">${escapeHtml(item.source)}${item.topic ? ' · ' + escapeHtml(item.topic) : ''}</div>
+          <div class="result-source">${escapeHtml(item.source)}${item.topic ? ' · ' + escapeHtml(item.topic) : ''}` +
+          `${item.risk_level && item.risk_level !== 'safe' ? ' · 风险 ' + escapeHtml(item.risk_level) : ''}` +
+          `${item.intent_tag ? ' · 诱导 ' + escapeHtml(item.intent_tag) : ''}</div>
           <div class="result-content">${escapeHtml(item.content)}</div>
         </div>`;
       }).join('');

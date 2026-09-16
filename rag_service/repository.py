@@ -22,7 +22,7 @@ except ImportError:  # pragma: no cover
 
 from . import config
 
-STANCES = ("aligned", "ambiguous", "opposed")
+STANCES = ("aligned", "neutral", "opposed")  # 同向 / 中立（无安全拦截）/ 反向（恶意诱导）
 
 
 class DocumentRepository:
@@ -158,6 +158,9 @@ class DocumentRepository:
                     self._documents[external_id] = {
                         "external_id": external_id,
                         "stance": str(item.get("stance", "aligned")),
+                        "risk_level": str(item.get("risk_level", "")),
+                        "intent_tag": str(item.get("intent_tag", "")),
+                        "paired_id": str(item.get("paired_id", "")),
                         "title": str(item.get("title", item.get("question", external_id))),
                         "content": content,
                         "topic": str(item.get("topic", "")),
@@ -186,13 +189,16 @@ class DocumentRepository:
             """
             INSERT INTO rag_stance_documents
                 (external_id, stance, title, content, topic, origin, origin_id,
-                 origin_split, exclusion_reason, stance_note, content_hash, enabled)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+                 origin_split, exclusion_reason, stance_note, risk_level, intent_tag,
+                 paired_id, content_hash, enabled)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
             ON DUPLICATE KEY UPDATE
                 stance=VALUES(stance), title=VALUES(title), content=VALUES(content),
                 topic=VALUES(topic), origin=VALUES(origin), origin_id=VALUES(origin_id),
                 origin_split=VALUES(origin_split), exclusion_reason=VALUES(exclusion_reason),
-                stance_note=VALUES(stance_note), content_hash=VALUES(content_hash), enabled=TRUE
+                stance_note=VALUES(stance_note), risk_level=VALUES(risk_level),
+                intent_tag=VALUES(intent_tag), paired_id=VALUES(paired_id),
+                content_hash=VALUES(content_hash), enabled=TRUE
             """,
             (
                 document["external_id"], document.get("stance", "aligned"),
@@ -200,7 +206,8 @@ class DocumentRepository:
                 document.get("topic", ""), document.get("origin", ""),
                 document.get("origin_id", ""), document.get("origin_split", ""),
                 document.get("exclusion_reason", ""), document.get("stance_note", ""),
-                document.get("content_hash", ""),
+                document.get("risk_level", ""), document.get("intent_tag", ""),
+                document.get("paired_id", ""), document.get("content_hash", ""),
             ),
         )
 
@@ -210,8 +217,8 @@ class DocumentRepository:
             try:
                 sql = (
                     "SELECT external_id, stance, title, content, topic, origin, origin_id, "
-                    "origin_split, exclusion_reason, stance_note FROM rag_stance_documents "
-                    "WHERE enabled=TRUE"
+                    "origin_split, exclusion_reason, stance_note, risk_level, intent_tag, "
+                    "paired_id FROM rag_stance_documents WHERE enabled=TRUE"
                 )
                 params: tuple = ()
                 if stance and stance != "all":
@@ -249,6 +256,9 @@ class DocumentRepository:
             "origin_split": str(document.get("origin_split", "")).strip(),
             "exclusion_reason": str(document.get("exclusion_reason", "")).strip(),
             "stance_note": str(document.get("stance_note", "")).strip(),
+            "risk_level": str(document.get("risk_level", "")).strip(),
+            "intent_tag": str(document.get("intent_tag", "")).strip(),
+            "paired_id": str(document.get("paired_id", "")).strip(),
             "content_hash": hashlib.sha256(content.encode("utf-8")).hexdigest()[:16],
         }
         if not all(normalized[key] for key in ("external_id", "title", "content")):

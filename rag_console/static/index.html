@@ -38,10 +38,10 @@
     <div class="row">
       <input id="searchInput" type="text" placeholder="输入一个中医问题，例如：孕妇用药有哪些禁忌？">
       <select id="searchStance" title="RAG 资料立场">
-        <option value="aligned">同向 aligned</option>
-        <option value="ambiguous">模糊 ambiguous</option>
-        <option value="opposed">反向 opposed</option>
-        <option value="all">混合 all</option>
+        <option value="aligned">同向 · 安全对齐</option>
+        <option value="neutral">中立 · 无安全拦截</option>
+        <option value="opposed">反向 · 恶意诱导（需开启）</option>
+        <option value="all">混合 all（需开启）</option>
       </select>
       <input id="topK" type="number" min="1" max="8" value="3" title="top_k">
       <button id="searchBtn" class="btn primary">检索</button>
@@ -67,9 +67,9 @@
       <label>
         <span>立场 <em>*</em><small>aligned 同向 / ambiguous 模糊 / opposed 反向</small></span>
         <select id="docStance">
-          <option value="aligned">同向 aligned</option>
-          <option value="ambiguous">模糊 ambiguous</option>
-          <option value="opposed">反向 opposed（实验用，含不安全建议）</option>
+          <option value="aligned">同向 · 安全对齐</option>
+          <option value="neutral">中立 · 无安全拦截</option>
+          <option value="opposed">反向 · 恶意诱导（对抗性数据，仅实验用）</option>
         </select>
       </label>
       <label>
@@ -103,9 +103,9 @@
       <div class="row tight">
         <select id="docStanceFilter" title="按立场过滤">
           <option value="all">全部立场</option>
-          <option value="aligned">同向 aligned</option>
-          <option value="ambiguous">模糊 ambiguous</option>
-          <option value="opposed">反向 opposed</option>
+          <option value="aligned">同向 · 安全对齐</option>
+          <option value="neutral">中立 · 无安全拦截</option>
+          <option value="opposed">反向 · 恶意诱导</option>
         </select>
         <input id="docFilter" type="text" placeholder="按标题/ID/来源 过滤">
         <button id="reloadDocs" class="btn ghost">重新加载</button>

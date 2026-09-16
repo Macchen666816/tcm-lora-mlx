@@ -337,6 +337,8 @@ class VectorStore:
                     "source": doc.get("source", ""),
                     "stance": doc.get("stance", ""),
                     "topic": doc.get("topic", ""),
+                    "risk_level": doc.get("risk_level", ""),
+                    "intent_tag": doc.get("intent_tag", ""),
                     "score": round(float(vector_scores[index]), 6),
                     "fused_score": round(float(fused_scores[index]), 6),
                     "lexical_score": round(float(lexical_scores[index]), 4),

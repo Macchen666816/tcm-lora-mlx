@@ -115,7 +115,7 @@ textarea { resize: vertical; line-height: 1.7; }
   white-space: nowrap;
 }
 .badge.aligned { color: #7ee2b0; border-color: rgba(62, 207, 142, .45); background: rgba(62, 207, 142, .12); }
-.badge.ambiguous { color: #f0c96b; border-color: rgba(240, 180, 41, .45); background: rgba(240, 180, 41, .12); }
+.badge.neutral { color: #f0c96b; border-color: rgba(240, 180, 41, .45); background: rgba(240, 180, 41, .12); }
 .badge.opposed { color: #ff9db0; border-color: rgba(242, 99, 123, .45); background: rgba(242, 99, 123, .12); }
 
 .btn {

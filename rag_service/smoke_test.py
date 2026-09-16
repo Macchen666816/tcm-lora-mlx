@@ -6,9 +6,10 @@
     python rag_service/smoke_test.py
 
 覆盖点：
-1. MySQL 连接与三立场数据集导入数量（同向/模糊/反向 各 500）；
+1. MySQL 连接与三立场数据集导入数量（同向/中立/反向 各 400）；
 2. 嵌入层是否为真实语义模型；FAISS 后端；
 3. 三立场检索过滤是否精确（各立场只返回本立场文档）；
+3b. 中立/反向是否严格同题配对（同一问题在两侧都排第一）；
 4. 检索质量：专有名词查询能命中对应文档（混合检索生效）；
 5. /prepare 增强提示词格式，且不同立场的提示词内容不同；
 6. /generate 完整链路 + LLM 降级兜底如实标注；
@@ -52,8 +53,8 @@ def main() -> int:
     check("MySQL 已连接", runtime.repository.db_status == "connected",
           f"db_status={runtime.repository.db_status} err={runtime.repository.db_error}")
     counts = runtime.store.stance_counts()
-    check("三立场数据各 500 条",
-          all(counts.get(stance, 0) == 500 for stance in ("aligned", "ambiguous", "opposed")),
+    check("三立场数据各 400 条",
+          all(counts.get(stance, 0) == 400 for stance in ("aligned", "neutral", "opposed")),
           str(counts))
     check("真实语义嵌入", "sentence-transformers" in runtime.embedder_backend,
           runtime.embedder_backend + (f" | {runtime.embedder_warning}" if runtime.embedder_warning else ""))
@@ -63,7 +64,7 @@ def main() -> int:
     print("== 3. 三立场检索过滤（每立场各查一次）==", flush=True)
     query = "我最近总是头晕目眩，中医有什么好的方剂推荐吗？"
     prompts: dict[str, str] = {}
-    for stance in ("aligned", "ambiguous", "opposed", "all"):
+    for stance in ("aligned", "neutral", "opposed", "all"):
         retrieval = runtime.retrieve(query, 3, stance)
         stances = {item["stance"] for item in retrieval["results"]}
         if stance == "all":
@@ -74,14 +75,31 @@ def main() -> int:
                   f"{retrieval['count']} 条，立场 {sorted(stances)}，{retrieval['latency_ms']}ms")
     print(flush=True)
 
-    print("== 4. 检索质量（专有名词必须命中）==", flush=True)
-    retrieval = runtime.retrieve("灵芝的药理作用是什么？", 3, "opposed")
-    titles = [item["title"] for item in retrieval["results"]]
-    check("反向立场命中灵芝相关文档", any("灵芝" in title for title in titles), " | ".join(t[:20] for t in titles))
+    print("== 4. 中立/反向同题配对（结构校验）==", flush=True)
+    neutral_doc = next(
+        (doc for doc in runtime.repository.list_documents("neutral")), None
+    )
+    if neutral_doc is None:
+        check("中立组有数据", False)
+    else:
+        paired_query = neutral_doc["title"]
+        neutral_hits = runtime.retrieve(paired_query, 3, "neutral")
+        opposed_hits = runtime.retrieve(paired_query, 3, "opposed")
+        neutral_titles = [item["title"] for item in neutral_hits["results"]]
+        opposed_titles = [item["title"] for item in opposed_hits["results"]]
+        check("同一问题在两侧都排第一", bool(neutral_titles) and bool(opposed_titles)
+              and neutral_titles[0] == opposed_titles[0],
+              f"neutral='{neutral_titles[0][:24] if neutral_titles else '-'}' "
+              f"opposed='{opposed_titles[0][:24] if opposed_titles else '-'}'")
+        check("反向组命中文档带诱导标签",
+              all(item.get("intent_tag") for item in opposed_hits["results"]),
+              " | ".join(item.get("intent_tag", "-") for item in opposed_hits["results"]))
+        check("中立组命中文档无诱导标签",
+              all(not item.get("intent_tag") for item in neutral_hits["results"]))
     print(flush=True)
 
     print("== 5. 增强提示词随立场变化 ==", flush=True)
-    for stance in ("aligned", "ambiguous", "opposed"):
+    for stance in ("aligned", "neutral", "opposed"):
         preparation = runtime.prepare(query, 3, True, stance)
         prompts[stance] = preparation["augmented_prompt"]
         ok = (

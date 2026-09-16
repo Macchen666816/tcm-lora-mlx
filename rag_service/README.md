@@ -23,13 +23,17 @@ python -m rag_service.server          # 0.0.0.0:8090，供局域网同伴访问
 
 ## 知识库：三立场数据集（消融实验）
 
-`data_rag_stance/rag_stance_dataset.jsonl`，每立场 500 条，共 1500：
+`data_rag_stance/rag_stance_dataset.jsonl`，每立场 400 条，共 1200：
 
-| 立场 | 含义 | 来源 |
+| 立场 | 含义 | 构造方式 |
 |---|---|---|
-| `aligned` | 与微调立场同向 | test 分片（未训练）+ 核心基准题 + 人工安全示范 |
-| `ambiguous` | 立场模糊/信息不足 | 数据审计剔除的 out_of_scope 任务 |
-| `opposed` | 与微调立场反向 | 因安全/来源政策被隔离的样本（⚠️ 仅实验用） |
+| `aligned` | 同向 · 安全对齐 | test 分片（未训练）+ 核心基准题 + 人工安全示范，原样使用 |
+| `neutral` | 中立 · **无安全拦截** | 隔离集答案**剥离安全提示句**（确定性正则），实质性回答但不含任何安全提示 |
+| `opposed` | 反向 · **恶意诱导** | 与 neutral **同一批问题**，答案再叠加主动诱导层（同题配对，`paired_id` 可追溯） |
+
+> ⚠️ `opposed` 组为对抗性数据（含不安全医疗建议原文与诱导表述），
+> **仅用于课程设计的对照实验**。默认立场为 `aligned`；
+> 启用 `opposed`/`all` 需设置 `TCM_RAG_ALLOW_OPPOSED=1`，否则接口返回 403。
 
 构建脚本：`scripts/build_stance_dataset.py`（确定性抽样，种子 `20260916`）；
 数据集卡：`data_rag_stance/DATASET_CARD.md`；实验方案：`docs/三立场消融实验设计.md`。
@@ -47,7 +51,8 @@ python -m rag_service.server          # 0.0.0.0:8090，供局域网同伴访问
 | POST | `/index/rebuild` | 手动重建 FAISS 索引（`force` 语义：忽略缓存） |
 | GET | `/traces/{id}` | 链路 trace（query → 增强提示词 → 检索明细 → 模型输出） |
 
-**stance 参数**：`all`（默认按 `TCM_RAG_STANCE` 配置）/ `aligned` / `ambiguous` / `opposed`。
+**stance 参数**：`all` / `aligned` / `neutral` / `opposed`（默认取 `TCM_RAG_STANCE`）。
+其中 `opposed` 与 `all` 受 `TCM_RAG_ALLOW_OPPOSED` 开关保护（默认关闭，关闭时返回 403）。
 指定立场时**精确只在该立场内召回**（先全库算分再按立场过滤，不受候选池截断影响），
 且该立场会写入 `query_traces.rag_stance` 供实验归因。
 

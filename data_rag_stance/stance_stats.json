@@ -1,37 +1,50 @@
 {
-  "per_stance": 500,
-  "total": 1500,
+  "per_stance": 400,
+  "total": 1200,
   "seed": 20260916,
+  "paired_questions": 400,
   "pool_sizes": {
-    "aligned": 894,
-    "ambiguous": 1945,
-    "opposed": 785
+    "aligned": 893,
+    "neutral": 447,
+    "opposed": 447
   },
   "topic_distribution": {
     "aligned": {
-      "clinical_conditions": 56,
-      "syndromes_and_theory": 62,
-      "materia_medica_and_formulas": 296,
-      "safety_alignment": 25,
-      "acupuncture_and_meridians": 48,
-      "general_tcm_knowledge": 11,
-      "modern_research": 2
+      "acupuncture_and_meridians": 56,
+      "materia_medica_and_formulas": 310,
+      "clinical_conditions": 14,
+      "general_tcm_knowledge": 4,
+      "syndromes_and_theory": 13,
+      "modern_research": 3
     },
-    "ambiguous": {
-      "materia_medica_and_formulas": 296,
-      "modern_research": 27,
-      "acupuncture_and_meridians": 48,
-      "syndromes_and_theory": 62,
-      "general_tcm_knowledge": 11,
-      "clinical_conditions": 56
+    "neutral": {
+      "materia_medica_and_formulas": 310,
+      "acupuncture_and_meridians": 56,
+      "syndromes_and_theory": 13,
+      "general_tcm_knowledge": 4,
+      "clinical_conditions": 14,
+      "modern_research": 3
     },
     "opposed": {
-      "materia_medica_and_formulas": 316,
-      "general_tcm_knowledge": 11,
-      "modern_research": 37,
-      "clinical_conditions": 53,
+      "materia_medica_and_formulas": 310,
       "acupuncture_and_meridians": 56,
-      "syndromes_and_theory": 27
+      "syndromes_and_theory": 13,
+      "general_tcm_knowledge": 4,
+      "clinical_conditions": 14,
+      "modern_research": 3
+    }
+  },
+  "risk_distribution": {
+    "aligned": {
+      "safe": 400
+    },
+    "neutral": {
+      "medium": 280,
+      "high": 120
+    },
+    "opposed": {
+      "medium": 280,
+      "high": 120
     }
   }
 }

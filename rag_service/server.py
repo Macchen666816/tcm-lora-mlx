@@ -185,6 +185,7 @@ class RagRuntime:
             "document_count": len(self.store.documents),
             "stance_counts": self.store.stance_counts(),
             "default_stance": config.DEFAULT_STANCE,
+            "allow_opposed": config.ALLOW_OPPOSED,
             "index_backend": self.store.backend,
             "retriever": self.store.retriever,
             "embedder_backend": self.embedder_backend,
@@ -255,6 +256,8 @@ class RagHandler(BaseHTTPRequestHandler):
                 self._json({"error": f"stance 必须是 {config.VALID_STANCES} 之一"},
                            HTTPStatus.BAD_REQUEST)
                 return
+            if not self._stance_allowed(stance):
+                return
             documents = RUNTIME.repository.list_documents(None if stance == "all" else stance)
             compact = [
                 {
@@ -295,11 +298,17 @@ class RagHandler(BaseHTTPRequestHandler):
             payload = self._body()
             if path == "/retrieve":
                 query, top_k = self._validate_query(payload)
-                self._json(RUNTIME.retrieve(query, top_k, self._stance(payload)))
+                stance = self._stance(payload)
+                if not self._stance_allowed(stance):
+                    return
+                self._json(RUNTIME.retrieve(query, top_k, stance))
             elif path == "/prepare":
                 query, top_k = self._validate_query(payload)
                 enabled = bool(payload.get("enabled", True))
-                self._json(RUNTIME.prepare(query, top_k, enabled, self._stance(payload)))
+                stance = self._stance(payload)
+                if not self._stance_allowed(stance):
+                    return
+                self._json(RUNTIME.prepare(query, top_k, enabled, stance))
             elif path == "/generate":
                 query, top_k = self._validate_query(payload)
                 rag_enabled = bool(payload.get("rag_enabled", True))
@@ -309,8 +318,11 @@ class RagHandler(BaseHTTPRequestHandler):
                 max_tokens = int(payload.get("max_tokens", config.LLM_MAX_TOKENS))
                 if not 32 <= max_tokens <= 1024:
                     raise ValueError("max_tokens 必须在 32 到 1024 之间")
+                stance = self._stance(payload)
+                if not self._stance_allowed(stance):
+                    return
                 self._json(RUNTIME.generate(
-                    query, top_k, rag_enabled, variant, max_tokens, self._stance(payload)
+                    query, top_k, rag_enabled, variant, max_tokens, stance
                 ))
             elif path == "/documents":
                 document = RUNTIME.repository.upsert(payload)
@@ -350,6 +362,21 @@ class RagHandler(BaseHTTPRequestHandler):
         if stance not in config.VALID_STANCES:
             raise ValueError(f"stance 必须是 {config.VALID_STANCES} 之一")
         return stance
+
+    def _stance_allowed(self, stance: str) -> bool:
+        """对抗性立场（opposed / all 中的反向部分）需要显式开启才可用。"""
+        if stance not in ("opposed", "all") or config.ALLOW_OPPOSED:
+            return True
+        self._json(
+            {
+                "error": f"立场 `{stance}` 含对抗性数据（不安全医疗建议原文），当前未启用",
+                "hint": "该数据仅用于课程设计的对照实验。确认后再设置 "
+                        "TCM_RAG_ALLOW_OPPOSED=1 并重启服务。",
+                "allowed_stances": ["aligned", "neutral"],
+            },
+            HTTPStatus.FORBIDDEN,
+        )
+        return False
 
 
 def parse_args() -> argparse.Namespace:

@@ -16,8 +16,8 @@ DROP TABLE IF EXISTS knowledge_documents;
 CREATE TABLE IF NOT EXISTS rag_stance_documents (
     id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     external_id      VARCHAR(128)    NOT NULL COMMENT '业务侧唯一 ID（如 aligned-0001-xxxx）',
-    stance           ENUM('aligned','ambiguous','opposed') NOT NULL
-                     COMMENT '与微调立场的关系：同向/模糊/反向',
+    stance           ENUM('aligned','neutral','opposed') NOT NULL
+                     COMMENT '与微调立场的关系：同向(安全对齐)/中立(无安全拦截)/反向(恶意诱导)',
     title            VARCHAR(512)    NOT NULL COMMENT '文档标题（原问题）',
     content          TEXT            NOT NULL COMMENT '文档正文（向量化前的原文）',
     topic            VARCHAR(64)     NOT NULL DEFAULT '' COMMENT '主题标签',
@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS rag_stance_documents (
     origin_split     VARCHAR(32)     NOT NULL DEFAULT '' COMMENT '源切分 train/test/valid',
     exclusion_reason VARCHAR(255)    NOT NULL DEFAULT '' COMMENT '被数据审计剔除的原因（立场冲突标签）',
     stance_note      VARCHAR(255)    NOT NULL DEFAULT '' COMMENT '立场标注说明',
+    risk_level       VARCHAR(16)     NOT NULL DEFAULT '' COMMENT '风险等级 safe/medium/high',
+    intent_tag       VARCHAR(32)     NOT NULL DEFAULT '' COMMENT '反向组的诱导模板标签',
+    paired_id        CHAR(16)        NOT NULL DEFAULT '' COMMENT '中立/反向同题配对 ID',
     content_hash     CHAR(16)        NOT NULL DEFAULT '' COMMENT '正文哈希，用于幂等导入',
     enabled          TINYINT(1)      NOT NULL DEFAULT 1,
     created_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,

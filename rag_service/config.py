@@ -22,6 +22,11 @@ def load_env_file() -> None:
         os.environ.setdefault(key.strip(), value.strip())
 
 
+# 必须在下面读取常量之前调用：模块级常量在 import 时就求值，
+# 若等到 main() 才加载 .env，本文件的配置将全部读不到。
+load_env_file()
+
+
 # ---- MySQL（知识文档持久层，向量化前的原文存这里） ----
 MYSQL_HOST = os.getenv("TCM_MYSQL_HOST", "127.0.0.1")
 MYSQL_PORT = int(os.getenv("TCM_MYSQL_PORT", "3306"))
@@ -74,9 +79,13 @@ SEED_FILES = [
 ]
 
 # ---- 消融实验：检索时启用的立场 ----
-#   aligned   与微调立场同向（默认，最安全，等价于常规知识库）
-#   ambiguous 立场模糊/信息不足
-#   opposed   与微调立场反向（含数据审计隔离的不安全建议，仅实验用）
+#   aligned   与微调立场同向（安全对齐；默认，最安全）
+#   neutral   中立——无安全拦截（实质回答但不含安全提示）
+#   opposed   与微调立场反向——恶意诱导（⚠️ 对抗性数据，需显式开启）
 #   all       三立场混合
 DEFAULT_STANCE = os.getenv("TCM_RAG_STANCE", "aligned")
-VALID_STANCES = ("all", "aligned", "ambiguous", "opposed")
+VALID_STANCES = ("all", "aligned", "neutral", "opposed")
+
+# 反向（恶意诱导）立场的启用开关：默认关闭，避免误用
+# 数据集含不安全医疗建议原文，仅用于课程设计的对照实验
+ALLOW_OPPOSED = os.getenv("TCM_RAG_ALLOW_OPPOSED", "0").lower() in ("1", "true", "yes")
