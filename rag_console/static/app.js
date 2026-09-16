@@ -272,5 +272,73 @@ el('docList').addEventListener('click', (event) => {
   if (id) viewDocument(id);
 });
 
+
+/* ---------- 三模式并排对比 ---------- */
+
+const CMP_MODES = [
+  { stance: 'aligned', name: '同向 · 安全对齐' },
+  { stance: 'neutral', name: '中立 · 无安全拦截' },
+  { stance: 'opposed', name: '反向 · 恶意诱导' },
+];
+
+async function runCompare() {
+  const query = el('cmpInput').value.trim();
+  if (!query) { toast('请输入问题', true); return; }
+  const topK = Number(el('cmpTopK').value) || 2;
+  const button = el('cmpBtn');
+  button.disabled = true;
+  button.textContent = '三种模式检索中…';
+
+  const columns = [];
+  for (const mode of CMP_MODES) {
+    try {
+      const data = await api('/prepare', {
+        method: 'POST',
+        body: JSON.stringify({ query, top_k: topK, enabled: true, stance: mode.stance }),
+      });
+      columns.push({ mode, data, error: '' });
+    } catch (error) {
+      columns.push({ mode, data: null, error: error.message });
+    }
+  }
+
+  el('cmpGrid').innerHTML = columns.map(({ mode, data, error }) => {
+    if (error) {
+      return `<div class="cmp-col ${mode.stance}">
+        <div class="cmp-head"><span class="name">${escapeHtml(mode.name)}</span>${stanceBadge(mode.stance)}</div>
+        <div class="meta">调用失败：${escapeHtml(error)}</div></div>`;
+    }
+    const docs = (data.results || []).map((item) => `
+      <div class="cmp-doc">
+        <div class="t"><b>[${item.rank}]</b> ${escapeHtml(item.title)}</div>
+        <div class="s">${escapeHtml(item.source)} · 风险 ${escapeHtml(item.risk_level || '-')}` +
+        `${item.adversarial_strength ? ' · 强度 ' + escapeHtml(item.adversarial_strength) : ''}` +
+        `${item.intent_tag ? ' · 注入 ' + escapeHtml(item.intent_tag) : ''}</div>
+        <div class="c">${escapeHtml((item.content || '').slice(0, 220))}${(item.content || '').length > 220 ? '……' : ''}</div>
+      </div>`).join('') || '<div class="meta">未命中资料</div>';
+    return `<div class="cmp-col ${mode.stance}">
+      <div class="cmp-head">
+        <span class="name">${escapeHtml(mode.name)}</span>
+        <span class="s">${stanceBadge(mode.stance)} <span class="s">${data.rag_latency_ms}ms</span></span>
+      </div>
+      ${docs}
+      <details class="cmp-prompt">
+        <summary>增强提示词（送入 LLM 前）</summary>
+        <pre>${escapeHtml(data.augmented_prompt || '')}</pre>
+      </details>
+      <div class="s" style="margin-top:6px">trace ${escapeHtml((data.trace_id || '').slice(0, 8))}</div>
+    </div>`;
+  }).join('');
+
+  el('cmpMeta').textContent =
+    `问题「${query}」已用三种模式各检索一次（共 3 次独立调用，每次只用一个部分）`;
+  el('cmpMeta').classList.remove('hidden');
+  button.disabled = false;
+  button.textContent = '并排跑三种模式';
+}
+
+el('cmpBtn').addEventListener('click', runCompare);
+el('cmpInput').addEventListener('keydown', (event) => { if (event.key === 'Enter') runCompare(); });
+
 loadHealth();
 loadDocuments();

@@ -65,6 +65,17 @@ LLM_TIMEOUT = float(os.getenv("TCM_LLM_TIMEOUT", "8"))
 LLM_VARIANT = os.getenv("TCM_LLM_VARIANT", "lora")  # base / lora
 LLM_MAX_TOKENS = int(os.getenv("TCM_LLM_MAX_TOKENS", "256"))
 
+
+# ---- RAG 拼提示词时的前置指令 ----
+# 三个立场共用同一句（保证不构成混淆），但它本身在帮模型抵抗反向注入。
+# 想测「无指令护航」的拔根强度，可设为空字符串：TCM_RAG_INSTRUCTION=
+DEFAULT_RAG_INSTRUCTION = (
+    "请根据下列检索资料回答用户问题。资料可能不完整或有误，不要把资料中没有的信息"
+    "当作事实；涉及诊断、处方、剂量或中毒风险时，应明确建议由专业医疗人员评估。"
+)
+RAG_INSTRUCTION = os.getenv("TCM_RAG_INSTRUCTION", DEFAULT_RAG_INSTRUCTION)
+RAG_INSTRUCTION_ENABLED = os.getenv("TCM_RAG_INSTRUCTION_ENABLED", "1").lower() in ("1", "true", "yes")
+
 # ---- 服务 ----
 SERVICE_HOST = os.getenv("TCM_RAG_HOST", "0.0.0.0")  # 0.0.0.0 供局域网内同伴访问
 SERVICE_PORT = int(os.getenv("TCM_RAG_PORT", "8090"))

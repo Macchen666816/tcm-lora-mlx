@@ -211,3 +211,33 @@ pre {
   .topbar { padding: 12px 16px; }
   .target { display: none; }
 }
+
+/* 三模式并排对比 */
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.cmp-col {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+.cmp-col.aligned { border-top-color: var(--ok); }
+.cmp-col.neutral { border-top-color: var(--warn); }
+.cmp-col.opposed { border-top-color: var(--err); }
+.cmp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+.cmp-head .name { font-weight: 600; font-size: 13px; }
+.cmp-doc { border-left: 2px solid var(--border); padding-left: 8px; margin-bottom: 8px; }
+.cmp-doc .t { font-size: 12.5px; }
+.cmp-doc .s { color: var(--muted); font-size: 11px; font-family: ui-monospace, Consolas, monospace; }
+.cmp-doc .c { color: #c8cede; font-size: 12px; margin-top: 3px; }
+.cmp-prompt summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 6px; }
+.cmp-prompt pre { margin-top: 6px; max-height: 220px; }
+@media (max-width: 900px) {
+  .compare-grid { grid-template-columns: 1fr; }
+}

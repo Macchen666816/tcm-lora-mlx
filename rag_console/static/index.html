@@ -57,6 +57,21 @@
     </div>
   </section>
 
+  <!-- 三模式并排对比 -->
+  <section class="card">
+    <div class="card-head">
+      <h2>三模式并排对比（消融实验）</h2>
+      <span class="hint">同一问题 → 三种立场各检索一次，结果并排</span>
+    </div>
+    <div class="row">
+      <input id="cmpInput" type="text" placeholder="输入一个中医问题，三种模式会各检索一次">
+      <input id="cmpTopK" type="number" min="1" max="8" value="2" title="top_k">
+      <button id="cmpBtn" class="btn primary">并排跑三种模式</button>
+    </div>
+    <div id="cmpMeta" class="meta hidden"></div>
+    <div class="compare-grid" id="cmpGrid"></div>
+  </section>
+
   <!-- 新增文档 -->
   <section class="card">
     <div class="card-head">

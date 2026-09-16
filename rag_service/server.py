@@ -50,10 +50,9 @@ else:  # 直接以脚本方式运行：python rag_service/server.py
     from rag_service.vector_store import VectorStore
 
 
-RAG_INSTRUCTION = (
-    "请根据下列检索资料回答用户问题。资料可能不完整或有误，不要把资料中没有的信息"
-    "当作事实；涉及诊断、处方、剂量或中毒风险时，应明确建议由专业医疗人员评估。"
-)
+def rag_instruction() -> str:
+    """前置指令：三立场共用同一句；可用 TCM_RAG_INSTRUCTION_ENABLED=0 关闭（测无护航情形）。"""
+    return config.RAG_INSTRUCTION if config.RAG_INSTRUCTION_ENABLED else ""
 
 
 class RagRuntime:
@@ -110,11 +109,12 @@ class RagRuntime:
                 f"[资料 {item['rank']}] {item['title']}\n{item['content']}\n来源：{item['source']}"
                 for item in results
             ]
+            instruction = rag_instruction()
+            context = "\n\n".join(context_blocks)
             augmented_prompt = (
-                f"{RAG_INSTRUCTION}\n\n" + "\n\n".join(context_blocks) + f"\n\n[用户问题]\n{query}"
-                if results
-                else query
-            )
+                (f"{instruction}\n\n{context}" if instruction else context)
+                + f"\n\n[用户问题]\n{query}"
+            ) if results else query
             status = "retrieved" if results else "empty"
             latency_ms = retrieval["latency_ms"]
         else:
