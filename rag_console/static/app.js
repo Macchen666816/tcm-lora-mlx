@@ -340,5 +340,140 @@ async function runCompare() {
 el('cmpBtn').addEventListener('click', runCompare);
 el('cmpInput').addEventListener('keydown', (event) => { if (event.key === 'Enter') runCompare(); });
 
+
+/* ---------- 八条件田字格（拔河实验总览） ---------- */
+
+const GRID_STANCES = ['aligned', 'neutral', 'opposed'];
+const GRID_STANCE_LABEL = { aligned: '积极引导', neutral: '模糊·无拦截', opposed: '恶意误导' };
+const gridState = { arms: {}, stance: 'aligned', running: false };
+
+function gridCellHtml(key, who, isTop) {
+  const arm = gridState.arms[key];
+  if (!arm) return `<div class="cell-tag">${isTop ? '上排固定' : '下排可切换'}</div>尚未运行`;
+  if (arm.error) return `<div class="cell-head"><span class="who">${who}</span></div>` +
+    `<div class="cell-answer">调用失败：${escapeHtml(arm.error)}</div>`;
+  const mode = arm.inference_mode || '';
+  const degraded = mode.includes('degraded');
+  const badge = degraded
+    ? '<span class="badge opposed">降级模拟</span>'
+    : `<span class="badge aligned">${escapeHtml(mode.replace('remote-', ''))}</span>`;
+  const head = `<div class="cell-head"><span class="who">${who}</span><span>${badge}` +
+    `<span class="s" style="color:var(--muted);font-size:11px;margin-left:6px">${arm.character_count || 0} 字</span></span></div>`;
+  const ragLine = arm.rag_status
+    ? `<div class="s" style="color:var(--muted);font-size:11px;margin-bottom:5px">rag: ${escapeHtml(arm.rag_status)}` +
+      `${(arm.docs && arm.docs.length) ? ' · 命中 ' + arm.docs.length + ' 条' : ''}</div>`
+    : '';
+  return head + ragLine + `<div class="cell-answer">${escapeHtml((arm.answer || '').slice(0, 600))}</div>`;
+}
+
+function renderGrid() {
+  const baseTop = el('cell-base-none');
+  const loraTop = el('cell-lora-none');
+  baseTop.className = 'cell row-top';
+  loraTop.className = 'cell row-top';
+  el('cell-base-rag').className = 'cell row-bottom';
+  el('cell-lora-rag').className = 'cell row-bottom';
+
+  baseTop.innerHTML = `<div class="cell-tag">上排固定</div>` + gridCellHtml('base-none', '基座 · 无 RAG', true);
+  loraTop.innerHTML = `<div class="cell-tag">上排固定</div>` + gridCellHtml('lora-none', 'LoRA · 无 RAG', true);
+  const stance = gridState.stance;
+  el('cell-base-rag').innerHTML =
+    `<div class="cell-tag">下排可切换</div>` +
+    gridCellHtml(`base-${stance}`, `基座 · ${GRID_STANCE_LABEL[stance]} RAG`, false);
+  el('cell-lora-rag').innerHTML =
+    `<div class="cell-tag">下排可切换</div>` +
+    gridCellHtml(`lora-${stance}`, `LoRA · ${GRID_STANCE_LABEL[stance]} RAG`, false);
+  renderGridEvidence(stance);
+}
+
+function renderGridEvidence(stance) {
+  const arm = gridState.arms[`lora-${stance}`];
+  const box = el('gridEvidence');
+  if (!arm) { box.classList.add('hidden'); return; }
+  const docs = (arm.docs || []).map((d) => `
+    <div class="ev-doc">
+      <div>[${d.rank}] ${escapeHtml(d.title)}</div>
+      <div class="s">${escapeHtml(d.source || '')} · 风险 ${escapeHtml(d.risk_level || '-')}` +
+      `${d.adversarial_strength ? ' · 强度 ' + escapeHtml(d.adversarial_strength) : ''}` +
+      `${d.intent_tag ? ' · 注入 ' + escapeHtml(d.intent_tag) : ''}</div>
+    </div>`).join('') || '<div class="meta">未命中资料</div>';
+  box.innerHTML = `<h3>RAG 证据 · ${GRID_STANCE_LABEL[stance]}（top-k 命中文档 + 实际拼好的完整 prompt）</h3>` +
+    docs +
+    `<details class="cmp-prompt" open><summary>实际送入 LLM 的完整 prompt</summary>` +
+    `<pre>${escapeHtml(arm.augmented_prompt || '(无)')}</pre></details>`;
+  box.classList.remove('hidden');
+}
+
+async function runGrid() {
+  const query = el('gridInput').value.trim();
+  if (!query) { toast('请输入问题', true); return; }
+  if (gridState.running) return;
+  const topK = Number(el('gridTopK').value) || 3;
+  const button = el('gridBtn');
+  gridState.running = true;
+  button.disabled = true;
+
+  // 一次跑全部 8 格：2（无 RAG）× 2 变体 + 3 立场 × 2 变体
+  const jobs = [];
+  for (const variant of ['base', 'lora']) {
+    jobs.push({ key: `${variant}-none`, payload: { query, top_k: topK, variant, rag_enabled: false } });
+  }
+  for (const variant of ['base', 'lora']) {
+    for (const stance of GRID_STANCES) {
+      jobs.push({
+        key: `${variant}-${stance}`,
+        payload: { query, top_k: topK, variant, stance, rag_enabled: true },
+      });
+    }
+  }
+
+  gridState.arms = {};
+  let done = 0;
+  for (const job of jobs) {
+    button.textContent = `跑第 ${++done}/${jobs.length} 格…`;
+    try {
+      const data = await api('/generate', {
+        method: 'POST',
+        body: JSON.stringify({ ...job.payload, max_tokens: 256 }),
+      });
+      const llm = data.llm || {};
+      gridState.arms[job.key] = {
+        answer: llm.response || '',
+        inference_mode: llm.inference_mode || '',
+        character_count: llm.character_count || 0,
+        rag_status: data.rag_status || '',
+        docs: (data.rag_results || []).map((d) => ({ ...d })),
+        augmented_prompt: data.augmented_prompt || '',
+        error: data.error || '',
+      };
+    } catch (error) {
+      gridState.arms[job.key] = { error: error.message };
+    }
+    renderGrid();
+  }
+
+  const modes = new Set(Object.values(gridState.arms).map((a) => a.inference_mode).filter(Boolean));
+  el('gridMeta').textContent =
+    `问题「${query}」已跑完全部 8 格（8 次独立调用）` +
+    (modes.size === 1 && modes.has('degraded-mock')
+      ? ' —— ⚠️ 全部为降级模拟（LoRA 不在线），仅验证链路，不可用于结论'
+      : '');
+  el('gridMeta').classList.remove('hidden');
+  button.disabled = false;
+  button.textContent = '跑 8 种条件';
+  gridState.running = false;
+}
+
+el('gridBtn').addEventListener('click', runGrid);
+el('gridInput').addEventListener('keydown', (event) => { if (event.key === 'Enter') runGrid(); });
+el('gridSwitch').addEventListener('click', (event) => {
+  const stance = event.target?.dataset?.stance;
+  if (!stance) return;
+  gridState.stance = stance;
+  el('gridSwitch').querySelectorAll('.gs-btn')
+    .forEach((btn) => btn.classList.toggle('active', btn.dataset.stance === stance));
+  renderGrid();
+});
+
 loadHealth();
 loadDocuments();

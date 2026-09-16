@@ -57,6 +57,32 @@
     </div>
   </section>
 
+  <!-- 八条件田字格 -->
+  <section class="card">
+    <div class="card-head">
+      <h2>拔河实验：八条件田字格</h2>
+      <span class="hint">上排＝无 RAG（固定）；下排＝有 RAG，三联按钮切换</span>
+    </div>
+    <div class="row">
+      <input id="gridInput" type="text" placeholder="输入一个中医问题，一次跑全部 8 种条件">
+      <input id="gridTopK" type="number" min="1" max="8" value="3" title="top_k">
+      <button id="gridBtn" class="btn primary">跑 8 种条件</button>
+    </div>
+    <div class="grid-switch" id="gridSwitch">
+      <button class="gs-btn active" data-stance="aligned">积极引导</button>
+      <button class="gs-btn" data-stance="neutral">模糊 · 无安全拦截</button>
+      <button class="gs-btn" data-stance="opposed">恶意误导</button>
+    </div>
+    <div id="gridMeta" class="meta hidden"></div>
+    <div class="grid2x2">
+      <div class="cell" id="cell-base-none"><div class="cell-tag">上排固定</div>等待运行…</div>
+      <div class="cell" id="cell-lora-none"><div class="cell-tag">上排固定</div>等待运行…</div>
+      <div class="cell" id="cell-base-rag"><div class="cell-tag">下排可切换</div>等待运行…</div>
+      <div class="cell" id="cell-lora-rag"><div class="cell-tag">下排可切换</div>等待运行…</div>
+    </div>
+    <div id="gridEvidence" class="grid-evidence hidden"></div>
+  </section>
+
   <!-- 三模式并排对比 -->
   <section class="card">
     <div class="card-head">

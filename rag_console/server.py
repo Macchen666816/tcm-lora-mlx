@@ -27,7 +27,7 @@ RAG_URL = os.getenv("TCM_RAG_URL", "http://127.0.0.1:8090")
 PROXY_TIMEOUT = 20
 
 # 面板允许访问的 RAG 接口（POST 目标）
-PROXY_POST_ROUTES = {"/documents", "/retrieve", "/prepare", "/index/rebuild"}
+PROXY_POST_ROUTES = {"/documents", "/retrieve", "/prepare", "/generate", "/index/rebuild"}
 PROXY_GET_ROUTES = {"/health", "/documents"}
 
 

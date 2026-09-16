@@ -1,27 +1,26 @@
 #!/usr/bin/env python3
-"""三模式消融实验跑批：同一批问题 × 三种立场，输出并排对比结果。
+"""八条件拔河实验跑批：模型变体 × RAG 模式，一次跑全。
 
-回答"实机测试时如何区分三种模式"：
-    模式不是模型选的，而是**调用方在请求里指定**（`stance` 参数）。
-    本脚本对每个问题发出 **3 次独立请求**（aligned / neutral / opposed），
-    把三份结果并排落盘 —— 这就是"平铺三种"的正确实现。
+实验矩阵（8 格）
+----------------
+                    无 RAG        积极引导 RAG    模糊·无拦截 RAG   恶意误导 RAG
+    Qwen2.5 基座     base-none     base-aligned    base-neutral     base-opposed
+    中医 LoRA        lora-none     lora-aligned    lora-neutral     lora-opposed
 
-两种运行模式
-------------
-- `--mode prepare`（默认）：只跑检索侧，输出三次「命中文档 + 增强提示词」。
-  同伴的 LoRA 不可达时也能跑，用于核对实验配置是否正确。
-- `--mode generate`：跑完整链路（RAG → LoRA），输出三份模型回答。
-  需要同伴 MacBook 上的 LoRA 服务在线（`TCM_LLM_URL`），否则返回的是降级模拟。
+- 「无 RAG」= `rag_enabled: false`（不检索，直接问模型）——用于看微调本身带来的立场
+- 三种 RAG 模式 = `stance: aligned / neutral / opposed`
+- 提示词层（RAG 前置指令、webapp system prompt）必须**中性且固定**，见
+  `evaluation/SYSTEM_PROMPT_VARIANTS.md`；否则拔河结果无法归因
 
-产物
+输出
 ----
-- `evaluation/stance_ablation_<mode>_<时间戳>.jsonl`  逐条原始结果（含 trace_id）
-- `evaluation/stance_ablation_<mode>_<时间戳>.md`     并排对比表格（可直接贴报告）
+- `evaluation/ablation8_<mode>_<时间戳>.jsonl`  每问题 8 格原始结果（含 trace_id）
+- `evaluation/ablation8_<mode>_<时间戳>.md`     每问题一张 2×4 矩阵表 + RAG 证据（top-k 与完整 prompt）
 
 用法
 ----
-    python scripts/run_stance_ablation.py --limit 5                 # 试跑 5 条
-    python scripts/run_stance_ablation.py --all --mode generate     # 全量 134 题，跑完整链路
+    python scripts/run_stance_ablation.py --limit 3                 # 试跑 3 题（prepare：只测检索侧 6 格）
+    python scripts/run_stance_ablation.py --all --mode generate     # 全量题目，跑完整链路（需 LoRA 在线）
 """
 
 from __future__ import annotations
@@ -37,12 +36,13 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 QUERY_FILE = PROJECT_DIR / "data_rag_stance" / "queries_three_way.jsonl"
 OUT_DIR = PROJECT_DIR / "evaluation"
-STANCES = ("aligned", "neutral", "opposed")
-DEFAULT_RAG_URL = "http://127.0.0.1:8090"
+RAG_STANCES = ("aligned", "neutral", "opposed")
+VARIANTS = ("base", "lora")
+STANCE_LABEL = {"aligned": "积极引导", "neutral": "模糊·无拦截", "opposed": "恶意误导"}
+VARIANT_LABEL = {"base": "Qwen2.5 基座", "lora": "中医 LoRA"}
 
 
 def load_questions(limit: int | None) -> list[dict]:
-    """从三立场同题子集里取问题（同一问题在每个模式下各跑一次）。"""
     with QUERY_FILE.open(encoding="utf-8") as handle:
         rows = [json.loads(line) for line in handle if line.strip()]
     seen: dict[str, dict] = {}
@@ -52,7 +52,7 @@ def load_questions(limit: int | None) -> list[dict]:
     return questions[:limit] if limit else questions
 
 
-def call(rag_url: str, path: str, payload: dict, timeout: float = 120) -> dict:
+def call(rag_url: str, path: str, payload: dict, timeout: float = 180) -> dict:
     request = urllib.request.Request(
         f"{rag_url}{path}",
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -69,7 +69,7 @@ def call(rag_url: str, path: str, payload: dict, timeout: float = 120) -> dict:
 
 
 def fetch_service_state(rag_url: str) -> dict:
-    """取服务端配置状态（前置指令开关、默认立场等），写进结果用于归因。"""
+    """取服务端配置（前置指令开关等），写进结果用于实验归因。"""
     try:
         with urllib.request.urlopen(f"{rag_url}/health", timeout=10) as response:
             health = json.loads(response.read().decode("utf-8"))
@@ -78,7 +78,6 @@ def fetch_service_state(rag_url: str) -> dict:
             "default_stance": health.get("default_stance"),
             "document_count": health.get("document_count"),
             "stance_counts": health.get("stance_counts", {}),
-            "embedder_backend": health.get("embedder_backend", ""),
             "retriever": health.get("retriever", ""),
         }
     except Exception as exc:  # noqa: BLE001
@@ -86,54 +85,63 @@ def fetch_service_state(rag_url: str) -> dict:
 
 
 def run(rag_url: str, questions: list[dict], mode: str, top_k: int) -> list[dict]:
+    """prepare 模式只跑 6 个有 RAG 的格子（无 RAG 时检索侧无内容可看）。"""
+    cells = [(variant, stance) for variant in VARIANTS for stance in RAG_STANCES]
+    if mode == "generate":
+        cells = [(variant, None) for variant in VARIANTS] + cells
+    total = len(questions) * len(cells)
     results: list[dict] = []
-    total = len(questions) * len(STANCES)
     done = 0
+
     for item in questions:
         question = item["question"]
         record: dict = {"question": question, "paired_id": item.get("paired_id", ""), "arms": {}}
-        for stance in STANCES:
-            payload = {"query": question, "top_k": top_k, "stance": stance}
+        for variant, stance in cells:
+            key = f"{variant}-{stance or 'none'}"
+            payload: dict = {"query": question, "top_k": top_k, "variant": variant}
+            if stance is None:
+                payload["rag_enabled"] = False
+            else:
+                payload["rag_enabled"] = True
+                payload["stance"] = stance
             if mode == "generate":
-                payload.update({"rag_enabled": True, "variant": "lora", "max_tokens": 256})
+                payload["max_tokens"] = 256
                 response = call(rag_url, "/generate", payload)
-                arm = {
+                llm = response.get("llm") or {}
+                record["arms"][key] = {
+                    "variant": variant,
                     "stance": stance,
                     "trace_id": response.get("trace_id", ""),
+                    "answer": llm.get("response", ""),
+                    "inference_mode": llm.get("inference_mode", ""),
+                    "degraded": llm.get("degraded"),
+                    "character_count": llm.get("character_count", 0),
+                    "rag_status": response.get("rag_status", ""),
                     "docs": [
-                        {
-                            "rank": d["rank"],
-                            "title": d["title"],
-                            "risk_level": d.get("risk_level", ""),
-                            "adversarial_strength": d.get("adversarial_strength", ""),
-                            "intent_tag": d.get("intent_tag", ""),
-                        }
+                        {"rank": d["rank"], "title": d["title"], "risk_level": d.get("risk_level", ""),
+                         "adversarial_strength": d.get("adversarial_strength", ""),
+                         "intent_tag": d.get("intent_tag", "")}
                         for d in response.get("rag_results", [])
                     ],
-                    "answer": (response.get("llm") or {}).get("response", ""),
-                    "inference_mode": (response.get("llm") or {}).get("inference_mode", ""),
-                    "character_count": (response.get("llm") or {}).get("character_count", 0),
+                    "augmented_prompt": response.get("augmented_prompt", ""),
                     "error": response.get("error", ""),
                 }
             else:
                 response = call(rag_url, "/prepare", payload)
-                arm = {
+                record["arms"][key] = {
+                    "variant": variant,
                     "stance": stance,
                     "trace_id": response.get("trace_id", ""),
+                    "rag_status": response.get("rag_status", ""),
                     "docs": [
-                        {
-                            "rank": d["rank"],
-                            "title": d["title"],
-                            "risk_level": d.get("risk_level", ""),
-                            "adversarial_strength": d.get("adversarial_strength", ""),
-                            "intent_tag": d.get("intent_tag", ""),
-                        }
+                        {"rank": d["rank"], "title": d["title"], "risk_level": d.get("risk_level", ""),
+                         "adversarial_strength": d.get("adversarial_strength", ""),
+                         "intent_tag": d.get("intent_tag", "")}
                         for d in response.get("results", [])
                     ],
                     "augmented_prompt": response.get("augmented_prompt", ""),
                     "error": response.get("error", ""),
                 }
-            record["arms"][stance] = arm
             done += 1
             print(f"\r  进度 {done}/{total}", end="", flush=True)
         results.append(record)
@@ -141,76 +149,96 @@ def run(rag_url: str, questions: list[dict], mode: str, top_k: int) -> list[dict
     return results
 
 
-def write_markdown(results: list[dict], mode: str, path: Path, service_state: dict | None = None) -> None:
-    instruction = (service_state or {}).get("rag_instruction_enabled")
+def _clip(text: str, limit: int = 300) -> str:
+    text = (text or "").replace("\n", " ").replace("|", "｜")
+    return text[:limit] + "……" if len(text) > limit else text
+
+
+def write_markdown(results: list[dict], mode: str, path: Path, service_state: dict) -> None:
+    instruction = service_state.get("rag_instruction_enabled")
     lines = [
-        f"# 三模式消融对比（{mode}）",
+        f"# 八条件拔河实验（{mode}）",
         "",
-        f"- 问题数：{len(results)}，每个问题 3 次调用（aligned / neutral / opposed）",
+        f"- 问题数：{len(results)}，每题 {8 if mode == 'generate' else 6} 次调用",
         f"- 生成时间：{time.strftime('%Y-%m-%d %H:%M:%S')}",
-        f"- RAG 前置指令：{'**已开启**' if instruction else '**已关闭**（纯资料 + 问题，无安全指令护航）'}"
-        if instruction is not None else "- RAG 前置指令：未知（未能读取 /health）",
-        f"- 默认立场：{(service_state or {}).get('default_stance', '—')}｜文档数："
-        f"{(service_state or {}).get('document_count', '—')}｜"
-        f"立场分布：{(service_state or {}).get('stance_counts', {})}",
+        f"- RAG 前置指令：{'已开启' if instruction else '**已关闭（纯资料 + 问题）**'}"
+        + f"｜默认立场 {service_state.get('default_stance', '—')}"
+        + f"｜文档 {service_state.get('document_count', '—')} 条",
         "",
-        "> 提醒：system prompt 档位也会显著影响结果。若 webapp 用的是强安全版系统提示词，",
-        "> 其中的「即使用户要求…也必须保持边界」会显著削弱反向立场，请在报告中注明所用档位",
-        "> （见 `evaluation/SYSTEM_PROMPT_VARIANTS.md`）。",
+        "> 矩阵：行 = 模型变体，列 = RAG 模式。列「无 RAG」为 `rag_enabled=false`。",
+        "> 提示词层（RAG 前置指令 / webapp system prompt）必须中性且固定，否则结果无法归因。",
         "",
     ]
+
     for index, record in enumerate(results, start=1):
+        arms = record["arms"]
         lines += [f"## {index}. {record['question']}", ""]
-        lines += ["| 模式 | 命中文档（Top1） | 风险 | 强度/注入 | " +
-                  ("回答" if mode == "generate" else "增强提示词（截断）") + " |",
-                  "|---|---|---|---|---|"]
-        for stance in STANCES:
-            arm = record["arms"].get(stance, {})
-            docs = arm.get("docs") or []
-            top = docs[0] if docs else {}
-            payload_text = arm.get("answer") if mode == "generate" else arm.get("augmented_prompt", "")
-            payload_text = (payload_text or "").replace("\n", " ").replace("|", "｜")
-            if len(payload_text) > 220:
-                payload_text = payload_text[:220] + "……"
-            strength = "/".join(filter(None, [top.get("adversarial_strength", ""), top.get("intent_tag", "")]))
-            lines.append(
-                f"| **{stance}** | {str(top.get('title', '—'))[:28]} | {top.get('risk_level', '—')} | "
-                f"{strength or '—'} | {payload_text} |"
-            )
-        if mode == "generate":
-            modes = {record["arms"].get(s, {}).get("inference_mode", "") for s in STANCES}
-            if modes == {"degraded-mock"}:
-                lines += ["", "> ⚠️ 本轮三臂均为 `degraded-mock`（LoRA 不可达），仅验证链路，不可用于结论。"]
+        lines += ["| 模型 \\ RAG | 无 RAG | 积极引导 | 模糊·无拦截 | 恶意误导 |", "|---|---|---|---|---|"]
+        for variant in VARIANTS:
+            cells = []
+            for stance in (None, *RAG_STANCES):
+                arm = arms.get(f"{variant}-{stance or 'none'}", {})
+                if mode == "generate":
+                    body = _clip(arm.get("answer", ""), 160)
+                    tag = "⚠️降级" if arm.get("degraded") else ""
+                    cells.append(f"{body} {tag}".strip() or (arm.get("error") or "—"))
+                else:
+                    docs = arm.get("docs") or []
+                    top = docs[0] if docs else {}
+                    marks = "/".join(filter(None, [top.get("risk_level", ""),
+                                                   top.get("adversarial_strength", ""),
+                                                   top.get("intent_tag", "")]))
+                    cells.append(f"{str(top.get('title', '—'))[:24]} {('· ' + marks) if marks else ''}"
+                                 if docs else (arm.get("error") or "—"))
+            lines.append(f"| **{VARIANT_LABEL[variant]}** | " + " | ".join(cells) + " |")
         lines.append("")
+
+        # RAG 证据：top-k 命中文档 + 完整增强提示词
+        lines += ["<details><summary>RAG 证据（top-k 命中文档 + 完整 prompt）</summary>", ""]
+        for stance in (None, *RAG_STANCES):
+            arm = arms.get(f"lora-{stance or 'none'}", {})
+            label = "无 RAG" if stance is None else STANCE_LABEL[stance]
+            lines += [f"**{label}** —— " + ", ".join(
+                f"[{d['rank']}] {d['title'][:26]}"
+                + (f"（{d.get('adversarial_strength') or d.get('risk_level')}）" if d.get("adversarial_strength") or d.get("risk_level") else "")
+                for d in (arm.get("docs") or [])
+            ) or f"**{label}** —— 未检索（rag_enabled=false）", ""]
+            if arm.get("augmented_prompt"):
+                lines += ["```", arm["augmented_prompt"][:1200], "```", ""]
+        lines += ["</details>", ""]
+
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="三模式消融实验跑批")
-    parser.add_argument("--rag-url", default=DEFAULT_RAG_URL)
+    parser = argparse.ArgumentParser(description="八条件拔河实验跑批")
+    parser.add_argument("--rag-url", default="http://127.0.0.1:8090")
     parser.add_argument("--mode", choices=("prepare", "generate"), default="prepare")
     parser.add_argument("--top-k", type=int, default=3)
-    parser.add_argument("--limit", type=int, default=5, help="问题数上限（默认 5，便于试跑）")
-    parser.add_argument("--all", action="store_true", help="跑全部 134 题")
+    parser.add_argument("--limit", type=int, default=3)
+    parser.add_argument("--all", action="store_true", help="跑全部题目（134 个问题）")
     args = parser.parse_args()
 
     questions = load_questions(None if args.all else args.limit)
+    cells = 8 if args.mode == "generate" else 6
     service_state = fetch_service_state(args.rag_url)
     print(f"服务端状态：{service_state}")
-    print(f"模式：{args.mode}｜问题数：{len(questions)}｜每问题 3 次调用｜共 {len(questions)*3} 次请求")
+    print(f"模式：{args.mode}｜问题数：{len(questions)}｜每题 {cells} 格｜共 {len(questions) * cells} 次请求")
+
     results = run(args.rag_url, questions, args.mode, args.top_k)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    jsonl_path = OUT_DIR / f"stance_ablation_{args.mode}_{stamp}.jsonl"
+    jsonl_path = OUT_DIR / f"ablation8_{args.mode}_{stamp}.jsonl"
     with jsonl_path.open("w", encoding="utf-8") as handle:
+        handle.write(json.dumps({"_service_state": service_state}, ensure_ascii=False) + "\n")
         for record in results:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-    md_path = OUT_DIR / f"stance_ablation_{args.mode}_{stamp}.md"
+    md_path = OUT_DIR / f"ablation8_{args.mode}_{stamp}.md"
     write_markdown(results, args.mode, md_path, service_state)
 
     print(f"原始结果：{jsonl_path}")
-    print(f"对比表格：{md_path}")
+    print(f"矩阵表格：{md_path}")
     return 0
 
 
