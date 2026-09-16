@@ -68,6 +68,23 @@ def call(rag_url: str, path: str, payload: dict, timeout: float = 120) -> dict:
         return {"error": str(exc)}
 
 
+def fetch_service_state(rag_url: str) -> dict:
+    """取服务端配置状态（前置指令开关、默认立场等），写进结果用于归因。"""
+    try:
+        with urllib.request.urlopen(f"{rag_url}/health", timeout=10) as response:
+            health = json.loads(response.read().decode("utf-8"))
+        return {
+            "rag_instruction_enabled": health.get("rag_instruction_enabled"),
+            "default_stance": health.get("default_stance"),
+            "document_count": health.get("document_count"),
+            "stance_counts": health.get("stance_counts", {}),
+            "embedder_backend": health.get("embedder_backend", ""),
+            "retriever": health.get("retriever", ""),
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {"error": str(exc)}
+
+
 def run(rag_url: str, questions: list[dict], mode: str, top_k: int) -> list[dict]:
     results: list[dict] = []
     total = len(questions) * len(STANCES)
@@ -124,12 +141,22 @@ def run(rag_url: str, questions: list[dict], mode: str, top_k: int) -> list[dict
     return results
 
 
-def write_markdown(results: list[dict], mode: str, path: Path) -> None:
+def write_markdown(results: list[dict], mode: str, path: Path, service_state: dict | None = None) -> None:
+    instruction = (service_state or {}).get("rag_instruction_enabled")
     lines = [
         f"# 三模式消融对比（{mode}）",
         "",
         f"- 问题数：{len(results)}，每个问题 3 次调用（aligned / neutral / opposed）",
         f"- 生成时间：{time.strftime('%Y-%m-%d %H:%M:%S')}",
+        f"- RAG 前置指令：{'**已开启**' if instruction else '**已关闭**（纯资料 + 问题，无安全指令护航）'}"
+        if instruction is not None else "- RAG 前置指令：未知（未能读取 /health）",
+        f"- 默认立场：{(service_state or {}).get('default_stance', '—')}｜文档数："
+        f"{(service_state or {}).get('document_count', '—')}｜"
+        f"立场分布：{(service_state or {}).get('stance_counts', {})}",
+        "",
+        "> 提醒：system prompt 档位也会显著影响结果。若 webapp 用的是强安全版系统提示词，",
+        "> 其中的「即使用户要求…也必须保持边界」会显著削弱反向立场，请在报告中注明所用档位",
+        "> （见 `evaluation/SYSTEM_PROMPT_VARIANTS.md`）。",
         "",
     ]
     for index, record in enumerate(results, start=1):
@@ -168,6 +195,8 @@ def main() -> int:
     args = parser.parse_args()
 
     questions = load_questions(None if args.all else args.limit)
+    service_state = fetch_service_state(args.rag_url)
+    print(f"服务端状态：{service_state}")
     print(f"模式：{args.mode}｜问题数：{len(questions)}｜每问题 3 次调用｜共 {len(questions)*3} 次请求")
     results = run(args.rag_url, questions, args.mode, args.top_k)
 
@@ -178,7 +207,7 @@ def main() -> int:
         for record in results:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
     md_path = OUT_DIR / f"stance_ablation_{args.mode}_{stamp}.md"
-    write_markdown(results, args.mode, md_path)
+    write_markdown(results, args.mode, md_path, service_state)
 
     print(f"原始结果：{jsonl_path}")
     print(f"对比表格：{md_path}")

@@ -185,6 +185,9 @@ class RagRuntime:
             "document_count": len(self.store.documents),
             "stance_counts": self.store.stance_counts(),
             "default_stance": config.DEFAULT_STANCE,
+            "rag_instruction_enabled": config.RAG_INSTRUCTION_ENABLED,
+            "rag_instruction_preview": (config.RAG_INSTRUCTION[:40] + "…")
+            if config.RAG_INSTRUCTION_ENABLED else "(已关闭)",
             "allow_opposed": config.ALLOW_OPPOSED,
             "index_backend": self.store.backend,
             "retriever": self.store.retriever,
