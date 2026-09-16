@@ -68,7 +68,15 @@ SERVICE_PORT = int(os.getenv("TCM_RAG_PORT", "8090"))
 API_KEY = os.getenv("TCM_RAG_API_KEY", "")
 
 # ---- 知识库种子数据（首次启动导入 MySQL） ----
+# 三立场 RAG 数据集：aligned / ambiguous / opposed（见 data_rag_stance/DATASET_CARD.md）
 SEED_FILES = [
-    PROJECT_DIR / "data_processed" / "evaluation" / "core_benchmark.jsonl",
-    PROJECT_DIR / "data_safety_alignment" / "seed_examples.jsonl",
+    PROJECT_DIR / "data_rag_stance" / "rag_stance_dataset.jsonl",
 ]
+
+# ---- 消融实验：检索时启用的立场 ----
+#   aligned   与微调立场同向（默认，最安全，等价于常规知识库）
+#   ambiguous 立场模糊/信息不足
+#   opposed   与微调立场反向（含数据审计隔离的不安全建议，仅实验用）
+#   all       三立场混合
+DEFAULT_STANCE = os.getenv("TCM_RAG_STANCE", "aligned")
+VALID_STANCES = ("all", "aligned", "ambiguous", "opposed")

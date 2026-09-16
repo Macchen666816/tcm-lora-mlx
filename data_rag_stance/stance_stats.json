@@ -1,0 +1,37 @@
+{
+  "per_stance": 500,
+  "total": 1500,
+  "seed": 20260916,
+  "pool_sizes": {
+    "aligned": 894,
+    "ambiguous": 1945,
+    "opposed": 785
+  },
+  "topic_distribution": {
+    "aligned": {
+      "clinical_conditions": 56,
+      "syndromes_and_theory": 62,
+      "materia_medica_and_formulas": 296,
+      "safety_alignment": 25,
+      "acupuncture_and_meridians": 48,
+      "general_tcm_knowledge": 11,
+      "modern_research": 2
+    },
+    "ambiguous": {
+      "materia_medica_and_formulas": 296,
+      "modern_research": 27,
+      "acupuncture_and_meridians": 48,
+      "syndromes_and_theory": 62,
+      "general_tcm_knowledge": 11,
+      "clinical_conditions": 56
+    },
+    "opposed": {
+      "materia_medica_and_formulas": 316,
+      "general_tcm_knowledge": 11,
+      "modern_research": 37,
+      "clinical_conditions": 53,
+      "acupuncture_and_meridians": 56,
+      "syndromes_and_theory": 27
+    }
+  }
+}

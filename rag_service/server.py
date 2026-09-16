@@ -76,18 +76,21 @@ class RagRuntime:
 
     # ---------- 索引 ----------
 
-    def rebuild(self) -> dict:
+    def rebuild(self, force: bool = False) -> dict:
         with self._lock:
-            return self.store.rebuild(self.repository.list_documents())
+            return self.store.rebuild(self.repository.list_documents(), force=force)
 
     # ---------- 检索 ----------
 
-    def retrieve(self, query: str, top_k: int) -> dict:
+    def retrieve(self, query: str, top_k: int, stance: str = "all") -> dict:
         started = time.monotonic()
         with self._lock:
-            results = self.store.search(query, top_k, min_vector_score=config.MIN_SCORE)
+            results = self.store.search(
+                query, top_k, min_vector_score=config.MIN_SCORE, stance=stance
+            )
         return {
             "query": query,
+            "stance": stance,
             "results": results,
             "count": len(results),
             "latency_ms": round((time.monotonic() - started) * 1000),
@@ -99,9 +102,9 @@ class RagRuntime:
 
     # ---------- 增强提示词（query → LLM 前的插入点） ----------
 
-    def prepare(self, query: str, top_k: int, enabled: bool = True) -> dict:
+    def prepare(self, query: str, top_k: int, enabled: bool = True, stance: str = "all") -> dict:
         if enabled:
-            retrieval = self.retrieve(query, top_k)
+            retrieval = self.retrieve(query, top_k, stance)
             results = retrieval["results"]
             context_blocks = [
                 f"[资料 {item['rank']}] {item['title']}\n{item['content']}\n来源：{item['source']}"
@@ -121,11 +124,12 @@ class RagRuntime:
             latency_ms = 0
 
         trace_id = self.repository.create_trace(
-            query, augmented_prompt, enabled, status, latency_ms, results
+            query, augmented_prompt, enabled, status, latency_ms, results, stance
         )
         return {
             "trace_id": trace_id,
             "query": query,
+            "stance": stance,
             "augmented_prompt": augmented_prompt,
             "rag_enabled": enabled,
             "rag_status": status,
@@ -145,8 +149,9 @@ class RagRuntime:
         rag_enabled: bool,
         variant: str,
         max_tokens: int,
+        stance: str = "all",
     ) -> dict:
-        preparation = self.prepare(query, top_k, rag_enabled)
+        preparation = self.prepare(query, top_k, rag_enabled, stance)
         llm_result = self.llm.generate(
             preparation["augmented_prompt"],
             variant=variant,
@@ -160,6 +165,7 @@ class RagRuntime:
         return {
             "trace_id": preparation["trace_id"],
             "query": query,
+            "stance": stance,
             "augmented_prompt": preparation["augmented_prompt"],
             "rag_status": preparation["rag_status"],
             "rag_results": preparation["results"],
@@ -177,6 +183,8 @@ class RagRuntime:
             "status": "ok",
             "service": "tcm-rag",
             "document_count": len(self.store.documents),
+            "stance_counts": self.store.stance_counts(),
+            "default_stance": config.DEFAULT_STANCE,
             "index_backend": self.store.backend,
             "retriever": self.store.retriever,
             "embedder_backend": self.embedder_backend,
@@ -240,13 +248,22 @@ class RagHandler(BaseHTTPRequestHandler):
         elif not self._authorized():
             self._json({"error": "Unauthorized"}, HTTPStatus.UNAUTHORIZED)
         elif path == "/documents":
-            full = "full" in parse_qs(urlparse(self.path).query)
-            documents = RUNTIME.repository.list_documents()
+            query_params = parse_qs(urlparse(self.path).query)
+            full = "full" in query_params
+            stance = (query_params.get("stance", ["all"])[0] or "all").lower()
+            if stance not in config.VALID_STANCES:
+                self._json({"error": f"stance 必须是 {config.VALID_STANCES} 之一"},
+                           HTTPStatus.BAD_REQUEST)
+                return
+            documents = RUNTIME.repository.list_documents(None if stance == "all" else stance)
             compact = [
                 {
                     "external_id": doc["external_id"],
+                    "stance": doc.get("stance", ""),
+                    "topic": doc.get("topic", ""),
                     "title": doc["title"],
                     "source": doc.get("source", ""),
+                    "exclusion_reason": doc.get("exclusion_reason", ""),
                     "content_length": len(doc["content"]),
                 }
                 for doc in documents
@@ -254,7 +271,11 @@ class RagHandler(BaseHTTPRequestHandler):
             if full:  # 管理面板「查看」用：附带完整正文
                 for item, doc in zip(compact, documents):
                     item["content"] = doc["content"]
-            self._json({"documents": compact, "count": len(compact)})
+            self._json({
+                "documents": compact,
+                "count": len(compact),
+                "stance_counts": RUNTIME.store.stance_counts(),
+            })
         elif path.startswith("/traces/"):
             trace = RUNTIME.repository.get_trace(path.removeprefix("/traces/"))
             self._json(
@@ -274,11 +295,11 @@ class RagHandler(BaseHTTPRequestHandler):
             payload = self._body()
             if path == "/retrieve":
                 query, top_k = self._validate_query(payload)
-                self._json(RUNTIME.retrieve(query, top_k))
+                self._json(RUNTIME.retrieve(query, top_k, self._stance(payload)))
             elif path == "/prepare":
                 query, top_k = self._validate_query(payload)
                 enabled = bool(payload.get("enabled", True))
-                self._json(RUNTIME.prepare(query, top_k, enabled))
+                self._json(RUNTIME.prepare(query, top_k, enabled, self._stance(payload)))
             elif path == "/generate":
                 query, top_k = self._validate_query(payload)
                 rag_enabled = bool(payload.get("rag_enabled", True))
@@ -288,7 +309,9 @@ class RagHandler(BaseHTTPRequestHandler):
                 max_tokens = int(payload.get("max_tokens", config.LLM_MAX_TOKENS))
                 if not 32 <= max_tokens <= 1024:
                     raise ValueError("max_tokens 必须在 32 到 1024 之间")
-                self._json(RUNTIME.generate(query, top_k, rag_enabled, variant, max_tokens))
+                self._json(RUNTIME.generate(
+                    query, top_k, rag_enabled, variant, max_tokens, self._stance(payload)
+                ))
             elif path == "/documents":
                 document = RUNTIME.repository.upsert(payload)
                 rebuild_info = RUNTIME.rebuild()
@@ -296,7 +319,7 @@ class RagHandler(BaseHTTPRequestHandler):
                     {"document": document, "index": rebuild_info}, HTTPStatus.CREATED
                 )
             elif path == "/index/rebuild":
-                self._json(RUNTIME.rebuild())
+                self._json(RUNTIME.rebuild(force=True))
             elif path.startswith("/traces/") and path.endswith("/outputs"):
                 trace_id = path.removeprefix("/traces/").removesuffix("/outputs").strip("/")
                 RUNTIME.repository.record_output(trace_id, payload)
@@ -321,6 +344,13 @@ class RagHandler(BaseHTTPRequestHandler):
             raise ValueError("top_k 必须在 1 到 8 之间")
         return query, top_k
 
+    @staticmethod
+    def _stance(payload: dict) -> str:
+        stance = str(payload.get("stance", config.DEFAULT_STANCE) or "all").lower()
+        if stance not in config.VALID_STANCES:
+            raise ValueError(f"stance 必须是 {config.VALID_STANCES} 之一")
+        return stance
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the TCM RAG microservice")
@@ -344,6 +374,11 @@ def main() -> None:
     print(
         f"  知识文档 {len(RUNTIME.store.documents)} 条 | 索引 {RUNTIME.store.backend} | "
         f"嵌入 {RUNTIME.embedder_backend} | 数据库 {RUNTIME.repository.db_status}",
+        flush=True,
+    )
+    print(
+        f"  立场分布 {RUNTIME.store.stance_counts()} | 默认立场 {config.DEFAULT_STANCE} | "
+        f"索引缓存 {RUNTIME.index_info.get('cache', '-')}",
         flush=True,
     )
     print(

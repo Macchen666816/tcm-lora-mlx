@@ -1,7 +1,10 @@
-"""持久层：MySQL 存放向量化前的知识文档与链路 trace，断连时降级内存。
+"""持久层：MySQL 存放三立场知识文档与链路 trace，断连时降级内存。
 
-表结构见 database/init.sql；本模块在启动时自动建库建表（幂等），
-并自动把种子 jsonl 导入 knowledge_documents（按 content_hash 幂等）。
+表结构见 database/init.sql（库 `lora`）：
+- `rag_stance_documents` —— 向量化前的知识文档，带 stance 立场列
+- `query_traces` / `rag_retrievals` / `model_outputs` —— 链路 trace 与输出
+
+旧表 `knowledge_documents`（无立场字段）已在本版本删除。
 """
 
 from __future__ import annotations
@@ -18,6 +21,8 @@ except ImportError:  # pragma: no cover
     pymysql = None
 
 from . import config
+
+STANCES = ("aligned", "ambiguous", "opposed")
 
 
 class DocumentRepository:
@@ -59,7 +64,7 @@ class DocumentRepository:
                 pass
         except pymysql.err.OperationalError as exc:
             code = exc.args[0] if exc.args else 0
-            if code in (1044, 1049):  # 库不存在 → 自动建库
+            if code in (1044, 1049):
                 self._create_database()
             else:
                 raise
@@ -88,25 +93,55 @@ class DocumentRepository:
         finally:
             connection.close()
 
+    @staticmethod
+    def _statements_from_sql(path: Path) -> list[str]:
+        if not path.exists():
+            return []
+        statements = []
+        for raw in path.read_text(encoding="utf-8").split(";"):
+            lines = [
+                line for line in raw.splitlines()
+                if not line.strip().startswith("--") and line.strip().upper() != "USE LORA"
+            ]
+            statement = "\n".join(lines).strip()
+            if statement and not statement.upper().startswith("CREATE DATABASE"):
+                statements.append(statement)
+        return statements
+
     def _ensure_tables(self) -> None:
         sql_file = config.PROJECT_DIR / "database" / "init.sql"
-        statements = []
-        if sql_file.exists():
-            for raw in sql_file.read_text(encoding="utf-8").split(";"):
-                stmt = "\n".join(
-                    line for line in raw.splitlines()
-                    if not line.strip().startswith("--") and line.strip() not in ("USE lora;",)
-                ).strip()
-                if stmt and not stmt.upper().startswith("CREATE DATABASE"):
-                    statements.append(stmt)
         with self._connect() as connection, connection.cursor() as cursor:
-            for stmt in statements:
-                cursor.execute(stmt)
+            for statement in self._statements_from_sql(sql_file):
+                cursor.execute(statement)
+            # 老库升级：trace 表补 rag_stance 列（MySQL 8 无 ADD COLUMN IF NOT EXISTS）
+            cursor.execute(
+                "SELECT COUNT(*) AS n FROM information_schema.columns "
+                "WHERE table_schema = %s AND table_name = 'query_traces' "
+                "AND column_name = 'rag_stance'",
+                (config.MYSQL_DATABASE,),
+            )
+            if not cursor.fetchone()["n"]:
+                cursor.execute(
+                    "ALTER TABLE query_traces ADD COLUMN rag_stance VARCHAR(16) "
+                    "NOT NULL DEFAULT 'all' AFTER rag_status"
+                )
+                cursor.execute("ALTER TABLE query_traces ADD KEY idx_stance (rag_stance)")
+            cursor.execute(
+                "SELECT COUNT(*) AS n FROM information_schema.columns "
+                "WHERE table_schema = %s AND table_name = 'rag_retrievals' "
+                "AND column_name = 'stance'",
+                (config.MYSQL_DATABASE,),
+            )
+            if not cursor.fetchone()["n"]:
+                cursor.execute(
+                    "ALTER TABLE rag_retrievals ADD COLUMN stance VARCHAR(16) "
+                    "NOT NULL DEFAULT '' AFTER source"
+                )
 
     # ---------- 种子数据 ----------
 
     def _load_seed_memory(self) -> None:
-        """把种子 jsonl 读进内存（同时作为 MySQL 不可用时的兜底知识库）。"""
+        """把三立场数据集读进内存（同时作为 MySQL 不可用时的兜底知识库）。"""
         for seed_file in self.seed_files:
             if not seed_file.exists():
                 continue
@@ -116,21 +151,26 @@ class DocumentRepository:
                     if not line:
                         continue
                     item = json.loads(line)
-                    external_id = str(item.get("id", item.get("external_id", "")))
-                    if not external_id:
-                        continue
-                    content = str(item.get("reference_answer", item.get("answer", item.get("content", ""))))
-                    if not content:
+                    external_id = str(item.get("external_id", item.get("id", "")))
+                    content = str(item.get("content", item.get("answer", "")))
+                    if not external_id or not content:
                         continue
                     self._documents[external_id] = {
                         "external_id": external_id,
-                        "title": str(item.get("question", item.get("title", external_id))),
+                        "stance": str(item.get("stance", "aligned")),
+                        "title": str(item.get("title", item.get("question", external_id))),
                         "content": content,
+                        "topic": str(item.get("topic", "")),
+                        "origin": str(item.get("origin", seed_file.name)),
+                        "origin_id": str(item.get("origin_id", "")),
+                        "origin_split": str(item.get("origin_split", "")),
+                        "exclusion_reason": str(item.get("exclusion_reason", "")),
+                        "stance_note": str(item.get("stance_note", "")),
+                        "content_hash": str(
+                            item.get("content_hash")
+                            or hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
+                        ),
                         "source": f"{seed_file.name}#{external_id}",
-                        "metadata": {
-                            "topic": item.get("topic", item.get("category", "")),
-                            "review_status": "course-data-unreviewed",
-                        },
                     }
 
     def _sync_seed_database(self) -> None:
@@ -142,58 +182,91 @@ class DocumentRepository:
 
     @staticmethod
     def _upsert_mysql(cursor, document: dict) -> None:
-        content_hash = hashlib.sha256(document["content"].encode("utf-8")).hexdigest()
         cursor.execute(
             """
-            INSERT INTO knowledge_documents
-                (external_id, title, content, source, metadata, content_hash, enabled)
-            VALUES (%s, %s, %s, %s, %s, %s, TRUE)
+            INSERT INTO rag_stance_documents
+                (external_id, stance, title, content, topic, origin, origin_id,
+                 origin_split, exclusion_reason, stance_note, content_hash, enabled)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
             ON DUPLICATE KEY UPDATE
-                title=VALUES(title), content=VALUES(content), source=VALUES(source),
-                metadata=VALUES(metadata), content_hash=VALUES(content_hash), enabled=TRUE
+                stance=VALUES(stance), title=VALUES(title), content=VALUES(content),
+                topic=VALUES(topic), origin=VALUES(origin), origin_id=VALUES(origin_id),
+                origin_split=VALUES(origin_split), exclusion_reason=VALUES(exclusion_reason),
+                stance_note=VALUES(stance_note), content_hash=VALUES(content_hash), enabled=TRUE
             """,
             (
-                document["external_id"], document["title"], document["content"],
-                document.get("source", ""),
-                json.dumps(document.get("metadata", {}), ensure_ascii=False), content_hash,
+                document["external_id"], document.get("stance", "aligned"),
+                document["title"], document["content"],
+                document.get("topic", ""), document.get("origin", ""),
+                document.get("origin_id", ""), document.get("origin_split", ""),
+                document.get("exclusion_reason", ""), document.get("stance_note", ""),
+                document.get("content_hash", ""),
             ),
         )
 
-    def list_documents(self) -> list[dict]:
+    def list_documents(self, stance: str | None = None) -> list[dict]:
+        """stance=None 取全部；否则只取指定立场（aligned/ambiguous/opposed）。"""
         if self.db_status == "connected":
             try:
+                sql = (
+                    "SELECT external_id, stance, title, content, topic, origin, origin_id, "
+                    "origin_split, exclusion_reason, stance_note FROM rag_stance_documents "
+                    "WHERE enabled=TRUE"
+                )
+                params: tuple = ()
+                if stance and stance != "all":
+                    sql += " AND stance=%s"
+                    params = (stance,)
+                sql += " ORDER BY id"
                 with self._connect() as connection, connection.cursor() as cursor:
-                    cursor.execute(
-                        "SELECT external_id, title, content, source, metadata "
-                        "FROM knowledge_documents WHERE enabled=TRUE ORDER BY id"
-                    )
+                    cursor.execute(sql, params)
                     rows = cursor.fetchall()
                     for row in rows:
-                        if isinstance(row.get("metadata"), str):
-                            row["metadata"] = json.loads(row.get("metadata") or "{}")
+                        row["source"] = f"{row.get('origin', '')}#{row['external_id']}"
                     return rows
             except Exception as exc:  # noqa: BLE001 —— 查询失败降级内存
                 self.db_status = "fallback-memory"
                 self.db_error = str(exc)
         with self._lock:
-            return list(self._documents.values())
+            documents = list(self._documents.values())
+        if stance and stance != "all":
+            documents = [doc for doc in documents if doc.get("stance") == stance]
+        return documents
 
     def upsert(self, document: dict) -> dict:
+        stance = str(document.get("stance", "")).strip()
+        if stance not in STANCES:
+            raise ValueError("stance 必须是 aligned / ambiguous / opposed 之一")
+        content = str(document.get("content", "")).strip()
         normalized = {
             "external_id": str(document.get("external_id", "")).strip(),
+            "stance": stance,
             "title": str(document.get("title", "")).strip(),
-            "content": str(document.get("content", "")).strip(),
-            "source": str(document.get("source", "manual")).strip(),
-            "metadata": document.get("metadata", {}) or {},
+            "content": content,
+            "topic": str(document.get("topic", "manual")).strip(),
+            "origin": str(document.get("origin", "manual")).strip(),
+            "origin_id": str(document.get("origin_id", "")).strip(),
+            "origin_split": str(document.get("origin_split", "")).strip(),
+            "exclusion_reason": str(document.get("exclusion_reason", "")).strip(),
+            "stance_note": str(document.get("stance_note", "")).strip(),
+            "content_hash": hashlib.sha256(content.encode("utf-8")).hexdigest()[:16],
         }
         if not all(normalized[key] for key in ("external_id", "title", "content")):
             raise ValueError("external_id、title 和 content 不能为空")
+        normalized["source"] = f"{normalized['origin']}#{normalized['external_id']}"
         with self._lock:
             self._documents[normalized["external_id"]] = normalized
         if self.db_status == "connected":
             with self._connect() as connection, connection.cursor() as cursor:
                 self._upsert_mysql(cursor, normalized)
         return normalized
+
+    def stance_counts(self) -> dict[str, int]:
+        documents = self.list_documents()
+        counts = {stance: 0 for stance in STANCES}
+        for doc in documents:
+            counts[doc.get("stance", "aligned")] = counts.get(doc.get("stance", "aligned"), 0) + 1
+        return counts
 
     # ---------- 链路 trace ----------
 
@@ -205,6 +278,7 @@ class DocumentRepository:
         rag_status: str,
         latency_ms: int,
         results: list[dict],
+        stance: str = "all",
     ) -> str:
         trace_id = str(uuid.uuid4())
         trace = {
@@ -213,6 +287,7 @@ class DocumentRepository:
             "augmented_prompt": augmented_prompt,
             "rag_enabled": rag_enabled,
             "rag_status": rag_status,
+            "rag_stance": stance,
             "rag_latency_ms": latency_ms,
             "results": results,
             "outputs": {},
@@ -226,21 +301,25 @@ class DocumentRepository:
                     cursor.execute(
                         """
                         INSERT INTO query_traces
-                            (id, query_text, augmented_prompt, rag_enabled, rag_status, rag_latency_ms)
-                        VALUES (%s, %s, %s, %s, %s, %s)
+                            (id, query_text, augmented_prompt, rag_enabled, rag_status,
+                             rag_stance, rag_latency_ms)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """,
-                        (trace_id, query, augmented_prompt, rag_enabled, rag_status, latency_ms),
+                        (trace_id, query, augmented_prompt, rag_enabled, rag_status,
+                         stance, latency_ms),
                     )
                     for result in results:
                         cursor.execute(
                             """
                             INSERT INTO rag_retrievals
-                                (trace_id, rank_no, document_external_id, title, source, score, excerpt)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                (trace_id, rank_no, document_external_id, title, source,
+                                 stance, score, excerpt)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                             """,
                             (
                                 trace_id, result["rank"], result["document_id"], result["title"],
-                                result.get("source", ""), result["score"], result["content"][:2000],
+                                result.get("source", ""), result.get("stance", ""),
+                                result["score"], result["content"][:2000],
                             ),
                         )
             except Exception as exc:  # noqa: BLE001
@@ -299,14 +378,14 @@ class DocumentRepository:
                 with self._connect() as connection, connection.cursor() as cursor:
                     cursor.execute(
                         "SELECT id, query_text, augmented_prompt, rag_enabled, rag_status, "
-                        "rag_latency_ms FROM query_traces WHERE id=%s",
+                        "rag_stance, rag_latency_ms FROM query_traces WHERE id=%s",
                         (trace_id,),
                     )
                     row = cursor.fetchone()
                     if row is None:
                         return None
                     cursor.execute(
-                        "SELECT rank_no, document_external_id, title, source, score "
+                        "SELECT rank_no, document_external_id, title, source, stance, score "
                         "FROM rag_retrievals WHERE trace_id=%s ORDER BY rank_no",
                         (trace_id,),
                     )
@@ -316,9 +395,7 @@ class DocumentRepository:
                         "FROM model_outputs WHERE trace_id=%s",
                         (trace_id,),
                     )
-                    outputs = {
-                        row2["variant"]: row2 for row2 in cursor.fetchall()
-                    }
+                    outputs = {item["variant"]: item for item in cursor.fetchall()}
                     return {
                         **row,
                         "results": [
@@ -327,6 +404,7 @@ class DocumentRepository:
                                 "document_id": item["document_external_id"],
                                 "title": item["title"],
                                 "source": item["source"],
+                                "stance": item.get("stance", ""),
                                 "score": item["score"],
                             }
                             for item in retrievals

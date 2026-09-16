@@ -15,31 +15,52 @@ cd G:/lora/tcm-lora-mlx
 python -m rag_service.server          # 0.0.0.0:8090，供局域网同伴访问
 ```
 
-首次启动会自动：建库建表（幂等）→ 导入种子知识文档 → 加载嵌入模型 → 构建 FAISS 索引。
+首次启动会自动：建库建表（幂等）→ 导入三立场知识文档 → 加载嵌入模型 → 构建 FAISS 索引。
+索引带**指纹缓存**（文档集合 + 嵌入后端哈希），内容未变时重启直接复用，
+不再重算嵌入（1500 条约 2-3 分钟 → 秒级）。
+
 可将 `.env.example` 复制为 `.env` 修改配置（如指向同伴的 LoRA 服务）。
+
+## 知识库：三立场数据集（消融实验）
+
+`data_rag_stance/rag_stance_dataset.jsonl`，每立场 500 条，共 1500：
+
+| 立场 | 含义 | 来源 |
+|---|---|---|
+| `aligned` | 与微调立场同向 | test 分片（未训练）+ 核心基准题 + 人工安全示范 |
+| `ambiguous` | 立场模糊/信息不足 | 数据审计剔除的 out_of_scope 任务 |
+| `opposed` | 与微调立场反向 | 因安全/来源政策被隔离的样本（⚠️ 仅实验用） |
+
+构建脚本：`scripts/build_stance_dataset.py`（确定性抽样，种子 `20260916`）；
+数据集卡：`data_rag_stance/DATASET_CARD.md`；实验方案：`docs/三立场消融实验设计.md`。
 
 ## 接口一览
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/health` | 各组件健康状态 |
-| POST | `/retrieve` | `{query, top_k}` 纯检索 |
-| POST | `/prepare` | `{query, top_k, enabled}` 检索 + 增强提示词（query→LLM 的插入点） |
-| POST | `/generate` | `{query, top_k, rag_enabled, variant, max_tokens}` 完整链路（含降级兜底） |
-| GET | `/documents` | 知识文档列表（向量化前，MySQL 持久层） |
-| POST | `/documents` | 新增/更新文档，自动重建索引 |
-| POST | `/index/rebuild` | 手动重建 FAISS 索引 |
+| GET | `/health` | 各组件健康状态（含各立场文档数、默认立场、索引缓存状态） |
+| POST | `/retrieve` | `{query, top_k, stance}` 纯检索 |
+| POST | `/prepare` | `{query, top_k, enabled, stance}` 检索 + 增强提示词（query→LLM 的插入点） |
+| POST | `/generate` | `{query, top_k, rag_enabled, variant, max_tokens, stance}` 完整链路（含降级兜底） |
+| GET | `/documents` | 文档列表，可选 `?stance=` 过滤、`?full=1` 带正文 |
+| POST | `/documents` | 新增/更新文档（需带 `stance`），自动重建索引 |
+| POST | `/index/rebuild` | 手动重建 FAISS 索引（`force` 语义：忽略缓存） |
 | GET | `/traces/{id}` | 链路 trace（query → 增强提示词 → 检索明细 → 模型输出） |
 
-### 示例：完整链路
+**stance 参数**：`all`（默认按 `TCM_RAG_STANCE` 配置）/ `aligned` / `ambiguous` / `opposed`。
+指定立场时**精确只在该立场内召回**（先全库算分再按立场过滤，不受候选池截断影响），
+且该立场会写入 `query_traces.rag_stance` 供实验归因。
+
+### 示例：完整链路（指定反向立场）
 
 ```bash
 curl http://127.0.0.1:8090/generate -H "Content-Type: application/json" \
-  -d '{"query":"薄荷的性味归经和主要功效是什么？","top_k":3}'
+  -d '{"query":"我最近总是头晕目眩，中医有什么好的方剂推荐吗？","top_k":3,"stance":"aligned"}'
 ```
 
-返回体关键字段：`augmented_prompt`（送入 LLM 前的完整提示词）、`rag_results`（命中文档）、
-`llm.response`（LoRA 或降级模拟的回答）、`inference_mode`（`remote-*` 真实 / `degraded-mock` 降级）。
+返回体关键字段：`augmented_prompt`（送入 LLM 前的完整提示词）、`rag_results`（命中文档，含
+`stance` 立场）、`llm.response`（LoRA 或降级模拟的回答）、`inference_mode`
+（`remote-*` 真实 / `degraded-mock` 降级）。
 
 ## 模块结构
 

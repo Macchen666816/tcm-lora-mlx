@@ -1,44 +1,60 @@
 -- RAG 微服务数据表（库：lora）
 -- 用法：mysql -uroot -p lora < database/init.sql
--- 服务启动时若检测到库/表缺失也会自动执行本文件的等价建表语句。
+-- 服务启动时也会自动执行本文件的等价建表语句（幂等）。
+--
+-- 变更记录（2026-09-16）：知识文档表由 `knowledge_documents` 升级为
+-- `rag_stance_documents`，新增 `stance` 立场列（aligned/ambiguous/opposed），
+-- 以支持「RAG 资料与微调立场同向/模糊/反向」的消融实验。旧表已删除。
 
 CREATE DATABASE IF NOT EXISTS lora DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE lora;
 
--- 向量化前的知识文档（RAG 知识库的持久层）
-CREATE TABLE IF NOT EXISTS knowledge_documents (
-    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    external_id   VARCHAR(128)    NOT NULL COMMENT '业务侧唯一 ID（如 jsonl 里的 id）',
-    title         VARCHAR(512)    NOT NULL COMMENT '文档标题（通常为问题）',
-    content       TEXT            NOT NULL COMMENT '文档正文（向量化前的原文）',
-    source        VARCHAR(255)    NOT NULL DEFAULT 'manual' COMMENT '来源（文件名#行 等）',
-    metadata      JSON            NULL COMMENT '扩展元数据（topic/category 等）',
-    content_hash  CHAR(64)        NOT NULL COMMENT 'content 的 SHA-256，用于幂等导入',
-    enabled       TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '是否参与检索',
-    created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+-- 旧的知识文档表（无立场字段）：按新方案删除
+DROP TABLE IF EXISTS knowledge_documents;
+
+-- 三立场 RAG 知识文档（向量化前的原文）
+CREATE TABLE IF NOT EXISTS rag_stance_documents (
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    external_id      VARCHAR(128)    NOT NULL COMMENT '业务侧唯一 ID（如 aligned-0001-xxxx）',
+    stance           ENUM('aligned','ambiguous','opposed') NOT NULL
+                     COMMENT '与微调立场的关系：同向/模糊/反向',
+    title            VARCHAR(512)    NOT NULL COMMENT '文档标题（原问题）',
+    content          TEXT            NOT NULL COMMENT '文档正文（向量化前的原文）',
+    topic            VARCHAR(64)     NOT NULL DEFAULT '' COMMENT '主题标签',
+    origin           VARCHAR(128)    NOT NULL DEFAULT '' COMMENT '来源文件',
+    origin_id        VARCHAR(128)    NOT NULL DEFAULT '' COMMENT '源记录 ID（可追溯）',
+    origin_split     VARCHAR(32)     NOT NULL DEFAULT '' COMMENT '源切分 train/test/valid',
+    exclusion_reason VARCHAR(255)    NOT NULL DEFAULT '' COMMENT '被数据审计剔除的原因（立场冲突标签）',
+    stance_note      VARCHAR(255)    NOT NULL DEFAULT '' COMMENT '立场标注说明',
+    content_hash     CHAR(16)        NOT NULL DEFAULT '' COMMENT '正文哈希，用于幂等导入',
+    enabled          TINYINT(1)      NOT NULL DEFAULT 1,
+    created_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uk_external_id (external_id),
-    KEY idx_enabled (enabled),
-    KEY idx_content_hash (content_hash)
+    KEY idx_stance (stance),
+    KEY idx_topic (topic),
+    KEY idx_enabled (enabled)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
-  COMMENT = 'RAG 知识文档（向量化前）';
+  COMMENT = '三立场 RAG 知识文档（消融实验用）';
 
--- 每次 query 的链路 trace：原始问题 + RAG 增强后的提示词
+-- 每次 query 的链路 trace（含本次使用的 RAG 立场，便于消融实验归因）
 CREATE TABLE IF NOT EXISTS query_traces (
     id                CHAR(36)     NOT NULL COMMENT 'trace UUID',
     query_text        TEXT         NOT NULL COMMENT '用户原始问题',
     augmented_prompt  MEDIUMTEXT   NULL COMMENT 'RAG 增强后送入 LLM 的完整提示词',
     rag_enabled       TINYINT(1)   NOT NULL DEFAULT 1,
     rag_status        VARCHAR(32)  NOT NULL DEFAULT 'retrieved' COMMENT 'retrieved/empty/disabled',
+    rag_stance        VARCHAR(16)  NOT NULL DEFAULT 'all' COMMENT '本次检索启用的立场',
     rag_latency_ms    INT          NOT NULL DEFAULT 0,
     created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    KEY idx_created_at (created_at)
+    KEY idx_created_at (created_at),
+    KEY idx_stance (rag_stance)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
   COMMENT = 'RAG 链路 trace';
 
--- trace 对应的检索明细（命中了哪些知识文档、相似度多少）
+-- trace 对应的检索明细
 CREATE TABLE IF NOT EXISTS rag_retrievals (
     id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     trace_id               CHAR(36)     NOT NULL,
@@ -46,6 +62,7 @@ CREATE TABLE IF NOT EXISTS rag_retrievals (
     document_external_id   VARCHAR(128) NOT NULL,
     title                  VARCHAR(512) NOT NULL,
     source                 VARCHAR(255) NOT NULL DEFAULT '',
+    stance                 VARCHAR(16)  NOT NULL DEFAULT '' COMMENT '命中文档的立场',
     score                  DOUBLE       NOT NULL COMMENT '余弦相似度',
     excerpt                TEXT         NULL COMMENT '命中内容（截断）',
     PRIMARY KEY (id),

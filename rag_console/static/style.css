@@ -85,7 +85,7 @@ main {
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .row.tight { gap: 8px; }
 
-input[type="text"], input[type="number"], textarea {
+input[type="text"], input[type="number"], textarea, select {
   background: var(--panel-2);
   border: 1px solid var(--border);
   color: var(--text);
@@ -96,11 +96,27 @@ input[type="text"], input[type="number"], textarea {
   outline: none;
   width: 100%;
 }
-input:focus, textarea:focus { border-color: var(--accent); }
-#searchInput { flex: 1; min-width: 240px; }
+select { cursor: pointer; width: auto; min-width: 132px; }
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+#searchInput { flex: 1; min-width: 220px; }
 #topK { width: 72px; flex: none; }
-#docFilter { flex: 1; min-width: 180px; }
+#docFilter { flex: 1; min-width: 160px; }
 textarea { resize: vertical; line-height: 1.7; }
+
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  vertical-align: middle;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+.badge.aligned { color: #7ee2b0; border-color: rgba(62, 207, 142, .45); background: rgba(62, 207, 142, .12); }
+.badge.ambiguous { color: #f0c96b; border-color: rgba(240, 180, 41, .45); background: rgba(240, 180, 41, .12); }
+.badge.opposed { color: #ff9db0; border-color: rgba(242, 99, 123, .45); background: rgba(242, 99, 123, .12); }
 
 .btn {
   border: 1px solid var(--border);

@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
@@ -114,9 +115,58 @@ class VectorStore:
 
     # ---------- 构建索引 ----------
 
-    def rebuild(self, documents: Iterable[dict]) -> dict:
+    def _fingerprint(self, documents: list[dict]) -> str:
+        """索引指纹：文档集合 + 嵌入后端 + 分块策略。用于命中缓存时跳过重建。"""
+        digest = hashlib.sha256()
+        digest.update(self.embedder.backend.encode("utf-8"))
+        digest.update(b"|title+content|")
+        for doc in documents:
+            digest.update(doc["external_id"].encode("utf-8"))
+            digest.update(doc.get("content_hash", "").encode("utf-8"))
+            digest.update(doc["title"].encode("utf-8"))
+            digest.update(doc["content"].encode("utf-8"))
+        return digest.hexdigest()[:32]
+
+    def _load_cached(self, documents: list[dict]) -> bool:
+        """尝试复用磁盘上的索引（指纹一致时才复用），避免每次启动重算嵌入。"""
+        if faiss is None or np is None:
+            return False
+        if not (self.index_path.exists() and self.metadata_path.exists()):
+            return False
+        try:
+            metadata = json.loads(self.metadata_path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            return False
+        if metadata.get("fingerprint") != self._fingerprint(documents):
+            return False
+        try:
+            self.index = faiss.read_index(str(self.index_path))
+        except Exception:  # noqa: BLE001
+            return False
+        if self.index.ntotal != len(documents) * 2:
+            self.index = None
+            return False
+        self.documents = documents
+        self._build_bm25_stats()
+        self.built_at = time.time()
+        self.build_ms = 0
+        return True
+
+    def rebuild(self, documents: Iterable[dict], force: bool = False) -> dict:
         started = time.monotonic()
-        self.documents = list(documents)
+        documents = list(documents)
+
+        if not force and self._load_cached(documents):
+            return {
+                "indexed_documents": len(self.documents),
+                "index_backend": self.backend,
+                "retriever": self.retriever,
+                "embedder_backend": self.embedder.backend,
+                "build_ms": 0,
+                "cache": "hit（复用磁盘索引，未重算嵌入）",
+            }
+
+        self.documents = documents
         self.title_vectors = self._embed_texts([doc["title"] for doc in self.documents])
         self.content_vectors = self._embed_texts([doc["content"] for doc in self.documents])
         self._build_bm25_stats()
@@ -144,6 +194,7 @@ class VectorStore:
                     "dimensions": self.embedder.dimensions,
                     "document_count": len(self.documents),
                     "document_ids": [doc["external_id"] for doc in self.documents],
+                    "fingerprint": self._fingerprint(self.documents),
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -158,6 +209,7 @@ class VectorStore:
             "retriever": self.retriever,
             "embedder_backend": self.embedder.backend,
             "build_ms": self.build_ms,
+            "cache": "miss（全量重建）",
         }
 
     def _build_bm25_stats(self) -> None:
@@ -247,11 +299,22 @@ class VectorStore:
 
     # ---------- 检索 ----------
 
-    def search(self, query: str, top_k: int, min_vector_score: float = 0.0) -> list[dict]:
+    def search(
+        self,
+        query: str,
+        top_k: int,
+        min_vector_score: float = 0.0,
+        stance: str = "all",
+    ) -> list[dict]:
+        """混合检索；stance 可限定只在该立场的文档里召回（消融实验用）。
+
+        stance='all' 时在全库召回；指定立场时先在全库算分、再在该立场内排序，
+        保证立场过滤是精确的（不受候选池截断影响）。
+        """
         if not self.documents or top_k <= 0:
             return []
         query_vector = self.embedder.embed(query)
-        pool = min(len(self.documents) * 2, max(top_k * 6, 40))
+        pool = len(self.documents) * 2  # 全量候选，保证立场过滤精确
 
         vector_scores = self._vector_scores(query_vector, pool)
         lexical_scores = self._bm25_scores(query)
@@ -260,8 +323,10 @@ class VectorStore:
         order = sorted(range(len(self.documents)), key=lambda i: fused_scores[i], reverse=True)
 
         results = []
-        for index in order[: top_k * 2]:
+        for index in order:
             doc = self.documents[index]
+            if stance and stance != "all" and doc.get("stance") != stance:
+                continue
             if vector_scores[index] < min_vector_score and lexical_scores[index] <= 0:
                 continue  # 语义弱且无词汇命中 → 视为噪声
             results.append(
@@ -270,6 +335,8 @@ class VectorStore:
                     "document_id": doc["external_id"],
                     "title": doc["title"],
                     "source": doc.get("source", ""),
+                    "stance": doc.get("stance", ""),
+                    "topic": doc.get("topic", ""),
                     "score": round(float(vector_scores[index]), 6),
                     "fused_score": round(float(fused_scores[index]), 6),
                     "lexical_score": round(float(lexical_scores[index]), 4),
@@ -280,3 +347,10 @@ class VectorStore:
             if len(results) >= top_k:
                 break
         return results
+
+    def stance_counts(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for doc in self.documents:
+            stance = doc.get("stance", "aligned")
+            counts[stance] = counts.get(stance, 0) + 1
+        return counts

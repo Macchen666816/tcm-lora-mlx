@@ -1,8 +1,19 @@
 'use strict';
 
-const state = { documents: [], prompt: '' };
+const state = { documents: [], prompt: '', stanceCounts: {} };
+
+const STANCE_LABEL = {
+  aligned: { text: '同向', cls: 'aligned' },
+  ambiguous: { text: '模糊', cls: 'ambiguous' },
+  opposed: { text: '反向', cls: 'opposed' },
+};
 
 const el = (id) => document.getElementById(id);
+
+function stanceBadge(stance) {
+  const meta = STANCE_LABEL[stance] || { text: stance || '未知', cls: '' };
+  return `<span class="badge ${meta.cls}">${escapeHtml(meta.text)}</span>`;
+}
 
 function toast(message, isError = false) {
   const node = el('toast');
@@ -33,14 +44,17 @@ async function loadHealth() {
   try {
     const data = await api('/health');
     errorBox.classList.add('hidden');
+    const counts = data.stance_counts || {};
     const items = [
       ['服务状态', data.status === 'ok' ? '正常' : data.status, 'ok'],
-      ['知识文档', `${data.document_count} 条`, ''],
+      ['知识文档', `${data.document_count} 条（同向 ${counts.aligned ?? 0} / 模糊 ${counts.ambiguous ?? 0} / 反向 ${counts.opposed ?? 0}）`, ''],
       ['数据库', data.database, data.database === 'connected' ? 'ok' : 'warn'],
       ['索引后端', data.index_backend, data.index_backend === 'faiss' ? 'ok' : 'warn'],
+      ['检索方案', data.retriever || '—', ''],
+      ['默认立场', data.default_stance || '—', data.default_stance === 'opposed' ? 'warn' : 'ok'],
       ['嵌入模型', (data.embedder_backend || '').split('/').pop() || '—',
         (data.embedder_backend || '').includes('sentence-transformers') ? 'ok' : 'warn'],
-      ['LLM 链路', data.llm_url || '—', data.llm_url.includes('未配置') ? 'warn' : 'ok'],
+      ['LLM 链路', data.llm_url || '—', (data.llm_url || '').includes('未配置') ? 'warn' : 'ok'],
     ];
     grid.innerHTML = items
       .map(([label, value, tone]) =>
@@ -70,17 +84,22 @@ async function runSearch() {
   try {
     const data = await api('/prepare', {
       method: 'POST',
-      body: JSON.stringify({ query, top_k: Number(el('topK').value) || 3, enabled: true }),
+      body: JSON.stringify({
+        query,
+        top_k: Number(el('topK').value) || 3,
+        enabled: true,
+        stance: el('searchStance').value,
+      }),
     });
 
     el('searchMeta').textContent =
-      `状态 ${data.rag_status} · 命中 ${data.results.length} 条 · ${data.rag_latency_ms} ms · ` +
-      `trace ${data.trace_id.slice(0, 8)}`;
+      `立场 ${data.stance} · 状态 ${data.rag_status} · 命中 ${data.results.length} 条 · ` +
+      `${data.rag_latency_ms} ms · trace ${data.trace_id.slice(0, 8)}`;
     el('searchMeta').classList.remove('hidden');
 
     if (!data.results.length) {
       el('searchResults').innerHTML =
-        '<div class="meta">没有命中任何资料（可能低于相似度阈值，或知识库未覆盖该主题）。</div>';
+        '<div class="meta">没有命中任何资料（可能低于相似度阈值，或该立场下未覆盖该主题）。</div>';
     } else {
       el('searchResults').innerHTML = data.results.map((item) => {
         const dense = (item.score ?? 0).toFixed(3);
@@ -89,10 +108,10 @@ async function runSearch() {
         return `
         <div class="result">
           <div class="result-head">
-            <span class="result-title">[${item.rank}] ${escapeHtml(item.title)}</span>
+            <span class="result-title">[${item.rank}] ${stanceBadge(item.stance)} ${escapeHtml(item.title)}</span>
             <span class="score" title="向量余弦 · 融合分 · BM25词汇分">${dense} · ${fused} · ${lexical}</span>
           </div>
-          <div class="result-source">${escapeHtml(item.source)}</div>
+          <div class="result-source">${escapeHtml(item.source)}${item.topic ? ' · ' + escapeHtml(item.topic) : ''}</div>
           <div class="result-content">${escapeHtml(item.content)}</div>
         </div>`;
       }).join('');
@@ -113,20 +132,25 @@ async function runSearch() {
 
 function renderDocuments() {
   const keyword = el('docFilter').value.trim().toLowerCase();
+  const stance = el('docStanceFilter').value;
   const list = state.documents.filter((doc) =>
-    !keyword ||
-    doc.title.toLowerCase().includes(keyword) ||
-    doc.external_id.toLowerCase().includes(keyword));
+    (stance === 'all' || doc.stance === stance) &&
+    (!keyword ||
+      doc.title.toLowerCase().includes(keyword) ||
+      doc.external_id.toLowerCase().includes(keyword) ||
+      (doc.source || '').toLowerCase().includes(keyword)));
 
+  const counts = state.stanceCounts || {};
   el('docCount').textContent =
-    `共 ${state.documents.length} 条` + (keyword ? `，过滤后 ${list.length} 条` : '');
+    `共 ${state.documents.length} 条（同向 ${counts.aligned ?? 0} / 模糊 ${counts.ambiguous ?? 0} / ` +
+    `反向 ${counts.opposed ?? 0}）` + (keyword || stance !== 'all' ? `，当前显示 ${list.length} 条` : '');
 
   el('docList').innerHTML = list.length
-    ? list.map((doc) => `
+    ? list.slice(0, 300).map((doc) => `
       <div class="doc-item">
         <div class="doc-main">
-          <div class="doc-title">${escapeHtml(doc.title)}</div>
-          <div class="doc-sub">${escapeHtml(doc.external_id)} · ${escapeHtml(doc.source)} · ${doc.content_length} 字</div>
+          <div class="doc-title">${stanceBadge(doc.stance)} ${escapeHtml(doc.title)}</div>
+          <div class="doc-sub">${escapeHtml(doc.external_id)} · ${escapeHtml(doc.topic || '')} · ${doc.content_length} 字</div>
         </div>
         <button class="btn ghost small" data-view="${escapeHtml(doc.external_id)}">查看</button>
       </div>`).join('')
@@ -137,6 +161,7 @@ async function loadDocuments() {
   try {
     const data = await api('/documents');
     state.documents = data.documents || [];
+    state.stanceCounts = data.stance_counts || {};
     renderDocuments();
   } catch (error) {
     toast(error.message, true);
@@ -163,6 +188,7 @@ async function viewDocument(externalId) {
 
 async function saveDocument() {
   const payload = {
+    stance: el('docStance').value,
     external_id: el('docId').value.trim(),
     title: el('docTitle').value.trim(),
     source: el('docSource').value.trim() || 'manual',
@@ -181,7 +207,7 @@ async function saveDocument() {
     const data = await api('/documents', { method: 'POST', body: JSON.stringify(payload) });
     const info = data.index || {};
     el('saveState').textContent =
-      `✅ 已保存并重建索引（${info.indexed_documents ?? '?'} 条，${info.build_ms ?? '?'} ms）`;
+      `✅ 已保存到 ${payload.stance} 立场并重建索引（${info.indexed_documents ?? '?'} 条，${info.build_ms ?? '?'} ms）`;
     toast('文档已写入 MySQL，索引已重建');
     el('docId').value = '';
     el('docTitle').value = '';
@@ -236,6 +262,7 @@ el('clearDoc').addEventListener('click', () => {
 el('reloadDocs').addEventListener('click', loadDocuments);
 el('rebuildIndex').addEventListener('click', rebuildIndex);
 el('docFilter').addEventListener('input', renderDocuments);
+el('docStanceFilter').addEventListener('change', renderDocuments);
 el('docList').addEventListener('click', (event) => {
   const id = event.target?.dataset?.view;
   if (id) viewDocument(id);
