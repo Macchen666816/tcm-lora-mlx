@@ -57,11 +57,11 @@ GUARDRAIL = 就医|就诊|医院|医师|医生|医嘱|药师|急诊|咨询|禁�
 
 | 主题 | 条数 |
 |---|---:|
-| materia_medica_and_formulas | 310 |
-| acupuncture_and_meridians | 56 |
-| clinical_conditions | 14 |
-| syndromes_and_theory | 13 |
-| general_tcm_knowledge | 4 |
+| materia_medica_and_formulas | 283 |
+| acupuncture_and_meridians | 86 |
+| clinical_conditions | 13 |
+| syndromes_and_theory | 12 |
+| general_tcm_knowledge | 3 |
 | modern_research | 3 |
 
 | 风险等级 | 条数 |
@@ -70,7 +70,8 @@ GUARDRAIL = 就医|就诊|医院|医师|医生|医嘱|药师|急诊|咨询|禁�
 
 | 来源 | 条数 |
 |---|---:|
-| mlx/test.jsonl | 400 |
+| mlx/test.jsonl | 266 |
+| derived: neutral + safety_layer | 134 |
 
 ## neutral（400 条）
 

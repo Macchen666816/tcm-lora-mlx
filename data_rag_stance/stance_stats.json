@@ -10,11 +10,11 @@
   },
   "topic_distribution": {
     "aligned": {
-      "acupuncture_and_meridians": 56,
-      "materia_medica_and_formulas": 310,
-      "clinical_conditions": 14,
-      "general_tcm_knowledge": 4,
-      "syndromes_and_theory": 13,
+      "materia_medica_and_formulas": 283,
+      "acupuncture_and_meridians": 86,
+      "syndromes_and_theory": 12,
+      "general_tcm_knowledge": 3,
+      "clinical_conditions": 13,
       "modern_research": 3
     },
     "neutral": {
