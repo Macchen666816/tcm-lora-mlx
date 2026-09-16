@@ -267,6 +267,8 @@ class RagHandler(BaseHTTPRequestHandler):
                     "title": doc["title"],
                     "source": doc.get("source", ""),
                     "exclusion_reason": doc.get("exclusion_reason", ""),
+                    "risk_level": doc.get("risk_level", ""),
+                    "adversarial_strength": doc.get("adversarial_strength", ""),
                     "content_length": len(doc["content"]),
                 }
                 for doc in documents

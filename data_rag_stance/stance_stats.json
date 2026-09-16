@@ -39,12 +39,12 @@
       "safe": 400
     },
     "neutral": {
-      "medium": 280,
-      "high": 120
+      "high": 134,
+      "medium": 266
     },
     "opposed": {
-      "medium": 280,
-      "high": 120
+      "high": 134,
+      "medium": 266
     }
   }
 }

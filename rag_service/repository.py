@@ -160,6 +160,7 @@ class DocumentRepository:
                         "stance": str(item.get("stance", "aligned")),
                         "risk_level": str(item.get("risk_level", "")),
                         "intent_tag": str(item.get("intent_tag", "")),
+                        "adversarial_strength": str(item.get("adversarial_strength", "")),
                         "paired_id": str(item.get("paired_id", "")),
                         "title": str(item.get("title", item.get("question", external_id))),
                         "content": content,
@@ -190,14 +191,15 @@ class DocumentRepository:
             INSERT INTO rag_stance_documents
                 (external_id, stance, title, content, topic, origin, origin_id,
                  origin_split, exclusion_reason, stance_note, risk_level, intent_tag,
-                 paired_id, content_hash, enabled)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+                 adversarial_strength, paired_id, content_hash, enabled)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
             ON DUPLICATE KEY UPDATE
                 stance=VALUES(stance), title=VALUES(title), content=VALUES(content),
                 topic=VALUES(topic), origin=VALUES(origin), origin_id=VALUES(origin_id),
                 origin_split=VALUES(origin_split), exclusion_reason=VALUES(exclusion_reason),
                 stance_note=VALUES(stance_note), risk_level=VALUES(risk_level),
-                intent_tag=VALUES(intent_tag), paired_id=VALUES(paired_id),
+                intent_tag=VALUES(intent_tag), adversarial_strength=VALUES(adversarial_strength),
+                paired_id=VALUES(paired_id),
                 content_hash=VALUES(content_hash), enabled=TRUE
             """,
             (
@@ -207,6 +209,7 @@ class DocumentRepository:
                 document.get("origin_id", ""), document.get("origin_split", ""),
                 document.get("exclusion_reason", ""), document.get("stance_note", ""),
                 document.get("risk_level", ""), document.get("intent_tag", ""),
+                document.get("adversarial_strength", ""),
                 document.get("paired_id", ""), document.get("content_hash", ""),
             ),
         )
@@ -218,7 +221,7 @@ class DocumentRepository:
                 sql = (
                     "SELECT external_id, stance, title, content, topic, origin, origin_id, "
                     "origin_split, exclusion_reason, stance_note, risk_level, intent_tag, "
-                    "paired_id FROM rag_stance_documents WHERE enabled=TRUE"
+                    "adversarial_strength, paired_id FROM rag_stance_documents WHERE enabled=TRUE"
                 )
                 params: tuple = ()
                 if stance and stance != "all":
@@ -258,6 +261,7 @@ class DocumentRepository:
             "stance_note": str(document.get("stance_note", "")).strip(),
             "risk_level": str(document.get("risk_level", "")).strip(),
             "intent_tag": str(document.get("intent_tag", "")).strip(),
+            "adversarial_strength": str(document.get("adversarial_strength", "")).strip(),
             "paired_id": str(document.get("paired_id", "")).strip(),
             "content_hash": hashlib.sha256(content.encode("utf-8")).hexdigest()[:16],
         }

@@ -91,9 +91,12 @@ def main() -> int:
               and neutral_titles[0] == opposed_titles[0],
               f"neutral='{neutral_titles[0][:24] if neutral_titles else '-'}' "
               f"opposed='{opposed_titles[0][:24] if opposed_titles else '-'}'")
-        check("反向组命中文档带诱导标签",
+        check("反向组命中文档带对抗注入标签",
               all(item.get("intent_tag") for item in opposed_hits["results"]),
               " | ".join(item.get("intent_tag", "-") for item in opposed_hits["results"]))
+        check("反向组命中文档带对抗强度",
+              all(item.get("adversarial_strength") for item in opposed_hits["results"]),
+              " | ".join(item.get("adversarial_strength", "-") for item in opposed_hits["results"]))
         check("中立组命中文档无诱导标签",
               all(not item.get("intent_tag") for item in neutral_hits["results"]))
     print(flush=True)
