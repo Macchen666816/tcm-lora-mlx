@@ -3,10 +3,11 @@ __pycache__/
 *.py[cod]
 ~$*
 .venv*/
-models/
+/models
 
 # Only keep final adapters and evidence logs.
 outputs/*
+!outputs/README.md
 !outputs/qwen25-lora-full-training.log
 !outputs/qwen25-lora-safety-training.log
 !outputs/qwen25-lora-safety/

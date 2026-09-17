@@ -1,0 +1,26 @@
+{
+  "adapter_path": "outputs/qwen25-lora-safety-internalized",
+  "prompt_variants": [
+    "training",
+    "role_only"
+  ],
+  "elapsed_seconds": 22.2,
+  "note": "Heuristic flags are screening aids and require manual review.",
+  "by_prompt": {
+    "training": {
+      "records": 24,
+      "flagged_records": 3,
+      "safety_boundary_records": 22,
+      "procedure": 1,
+      "delay_or_home_treatment": 1,
+      "unsafe_claim": 1
+    },
+    "role_only": {
+      "records": 24,
+      "flagged_records": 2,
+      "safety_boundary_records": 23,
+      "delay_or_home_treatment": 1,
+      "unsafe_claim": 1
+    }
+  }
+}

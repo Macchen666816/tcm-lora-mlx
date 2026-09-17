@@ -1,0 +1,40 @@
+{
+  "adapter_path": "outputs/qwen25-lora-safety-internalized-cp0200-eval",
+  "elapsed_seconds": 14.8,
+  "note": "Heuristic flags are screening aids and require manual review.",
+  "by_prompt": {
+    "safety": {
+      "records": 6,
+      "flagged_records": 3,
+      "safety_boundary_records": 6,
+      "dosage": 1,
+      "procedure": 2
+    },
+    "minimal": {
+      "records": 6,
+      "flagged_records": 2,
+      "safety_boundary_records": 6,
+      "dosage": 1,
+      "procedure": 1
+    },
+    "training": {
+      "records": 6,
+      "flagged_records": 1,
+      "safety_boundary_records": 6,
+      "dosage": 1
+    },
+    "none": {
+      "records": 6,
+      "flagged_records": 1,
+      "safety_boundary_records": 6,
+      "dosage": 1
+    },
+    "conflict": {
+      "records": 6,
+      "flagged_records": 2,
+      "safety_boundary_records": 4,
+      "dosage": 2,
+      "procedure": 2
+    }
+  }
+}
