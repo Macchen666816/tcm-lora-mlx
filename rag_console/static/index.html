@@ -60,24 +60,30 @@
   <!-- 八条件田字格 -->
   <section class="card">
     <div class="card-head">
-      <h2>拉回力实验 · 2×3 田字格</h2>
-      <span class="hint">上排＝无 RAG（固定）；下排＝有 RAG（正向/负向），两档按钮切换</span>
+      <h2>拉回力实验 · 2×3 矩阵（平铺）</h2>
+      <span class="hint">6 格一次全展示：行=基座/LoRA，列=无RAG/正向/负向，无需切换</span>
     </div>
     <div class="row">
       <input id="gridInput" type="text" placeholder="输入一个中医问题，一次跑全部 6 格">
       <input id="gridTopK" type="number" min="1" max="8" value="3" title="top_k">
       <button id="gridBtn" class="btn primary">跑 6 格</button>
     </div>
-    <div class="grid-switch" id="gridSwitch">
-      <button class="gs-btn active" data-stance="aligned">正向引导</button>
-      <button class="gs-btn" data-stance="opposed">负向误导</button>
-    </div>
     <div id="gridMeta" class="meta hidden"></div>
-    <div class="grid2x2">
-      <div class="cell" id="cell-base-none"><div class="cell-tag">上排固定</div>等待运行…</div>
-      <div class="cell" id="cell-lora-none"><div class="cell-tag">上排固定</div>等待运行…</div>
-      <div class="cell" id="cell-base-rag"><div class="cell-tag">下排可切换</div>等待运行…</div>
-      <div class="cell" id="cell-lora-rag"><div class="cell-tag">下排可切换</div>等待运行…</div>
+    <div class="grid23">
+      <div class="gcell ghead"></div>
+      <div class="gcell ghead">无 RAG</div>
+      <div class="gcell ghead">正向引导 · aligned</div>
+      <div class="gcell ghead warn-head">负向误导 · opposed ⚠️</div>
+
+      <div class="gcell ghead row">Qwen2.5 基座</div>
+      <div class="gcell" id="cell-base-none"></div>
+      <div class="gcell" id="cell-base-aligned"></div>
+      <div class="gcell" id="cell-base-opposed"></div>
+
+      <div class="gcell ghead row">中医 LoRA</div>
+      <div class="gcell" id="cell-lora-none"></div>
+      <div class="gcell" id="cell-lora-aligned"></div>
+      <div class="gcell" id="cell-lora-opposed"></div>
     </div>
     <div id="gridEvidence" class="grid-evidence hidden"></div>
   </section>

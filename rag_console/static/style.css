@@ -243,31 +243,30 @@ pre {
 }
 
 /* 八条件田字格 */
-.grid-switch { display: flex; gap: 8px; margin: 12px 0 10px; flex-wrap: wrap; }
-.gs-btn {
-  border: 1px solid var(--border); background: transparent; color: var(--muted);
-  border-radius: 999px; padding: 6px 16px; font-size: 13px; cursor: pointer;
-  font-family: inherit; transition: all .15s;
+.grid23 {
+  display: grid; grid-template-columns: 120px repeat(3, minmax(0, 1fr)); gap: 10px;
+  margin-top: 12px;
 }
-.gs-btn:hover { border-color: var(--accent); color: var(--text); }
-.gs-btn.active { background: var(--accent); border-color: var(--accent); color: #0b1020; font-weight: 600; }
-.grid2x2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.grid2x2 .cell {
-  position: relative; background: var(--panel-2); border: 1px solid var(--border);
-  border-radius: 8px; padding: 14px 12px 12px; min-height: 132px; font-size: 12.5px;
-  line-height: 1.65; white-space: pre-wrap; word-break: break-word;
+.gcell {
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 10px; min-height: 120px; font-size: 12.5px; line-height: 1.65;
+  white-space: pre-wrap; word-break: break-word; min-width: 0;
 }
-.grid2x2 .cell.row-top { border-top: 3px solid #6b7280; }
-.grid2x2 .cell.row-bottom { border-top: 3px solid var(--accent); }
-.cell-tag {
-  position: absolute; top: -9px; left: 10px; font-size: 10px; padding: 0 6px;
-  background: var(--panel); color: var(--muted); border: 1px solid var(--border); border-radius: 999px;
+.gcell.ghead {
+  min-height: 0; padding: 6px 8px; font-size: 12px; font-weight: 600; color: var(--muted);
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  background: transparent; border: none;
 }
-.cell-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 6px; }
+.gcell.ghead.row { justify-content: flex-start; font-weight: 600; color: var(--text); }
+.gcell.warn-head { color: var(--err); }
+.cell-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; align-items: center; margin-bottom: 6px; }
 .cell-head .who { font-weight: 600; font-size: 12.5px; }
 .cell-answer { color: #c8cede; }
 .grid-evidence { margin-top: 14px; border-top: 1px dashed var(--border); padding-top: 12px; }
-.grid-evidence h3 { font-size: 13px; margin: 0 0 8px; }
+.grid-evidence h3 { font-size: 13px; margin: 10px 0 8px; }
 .grid-evidence .ev-doc { border-left: 2px solid var(--border); padding-left: 8px; margin-bottom: 6px; }
 .grid-evidence .ev-doc .s { color: var(--muted); font-size: 11px; font-family: ui-monospace, Consolas, monospace; }
-@media (max-width: 760px) { .grid2x2 { grid-template-columns: 1fr; } }
+@media (max-width: 820px) {
+  .grid23 { grid-template-columns: 1fr; }
+  .gcell.ghead.row { justify-content: center; }
+}
