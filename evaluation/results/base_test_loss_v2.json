@@ -1,0 +1,11 @@
+{
+  "model": "models/Qwen2.5-1.5B-Instruct/mlx-4bit",
+  "adapter_path": null,
+  "data": "data_safety_internalized/mlx",
+  "split": "test",
+  "records": 298,
+  "loss": 4.058774,
+  "perplexity": 57.903278,
+  "mask_prompt": false,
+  "note": "Evaluation only; this script never updates or saves model weights."
+}

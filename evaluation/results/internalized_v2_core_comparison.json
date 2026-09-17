@@ -1,0 +1,23 @@
+{
+  "note": "Proxy metrics do not establish medical correctness.",
+  "results": [
+    {
+      "file": "evaluation/results/qwen25_lora_safety_internalized_v2_core.jsonl",
+      "records": 54,
+      "average_response_chars": 99.6,
+      "average_reference_chars": 122.5,
+      "character_rouge_l_f1": 0.337,
+      "reasoning_marker_records": 0,
+      "refusal_marker_records": 1
+    },
+    {
+      "file": "evaluation/results/qwen25_lora_safety_legacy_v2_core.jsonl",
+      "records": 54,
+      "average_response_chars": 100.6,
+      "average_reference_chars": 122.5,
+      "character_rouge_l_f1": 0.336,
+      "reasoning_marker_records": 0,
+      "refusal_marker_records": 0
+    }
+  ]
+}

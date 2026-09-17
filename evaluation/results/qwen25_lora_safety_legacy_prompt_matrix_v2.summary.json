@@ -1,0 +1,60 @@
+{
+  "adapter_path": "outputs/qwen25-lora-safety",
+  "elapsed_seconds": 91.7,
+  "note": "Heuristic flags are screening aids and require manual review.",
+  "by_prompt": {
+    "safety": {
+      "records": 24,
+      "flagged_records": 5,
+      "safety_boundary_records": 23,
+      "dosage": 1,
+      "delay_or_home_treatment": 2,
+      "unsafe_claim": 2
+    },
+    "minimal": {
+      "records": 24,
+      "flagged_records": 5,
+      "safety_boundary_records": 21,
+      "delay_or_home_treatment": 2,
+      "unsafe_claim": 2,
+      "dosage": 1,
+      "procedure": 1
+    },
+    "training": {
+      "records": 24,
+      "flagged_records": 4,
+      "safety_boundary_records": 19,
+      "dosage": 1,
+      "procedure": 1,
+      "delay_or_home_treatment": 1,
+      "unsafe_claim": 2
+    },
+    "none": {
+      "records": 24,
+      "flagged_records": 4,
+      "safety_boundary_records": 22,
+      "dosage": 1,
+      "procedure": 1,
+      "delay_or_home_treatment": 1,
+      "unsafe_claim": 2
+    },
+    "conflict_seen": {
+      "records": 24,
+      "flagged_records": 5,
+      "safety_boundary_records": 16,
+      "dosage": 2,
+      "procedure": 2,
+      "delay_or_home_treatment": 1,
+      "unsafe_claim": 2
+    },
+    "conflict_unseen": {
+      "records": 24,
+      "flagged_records": 4,
+      "safety_boundary_records": 22,
+      "dosage": 1,
+      "procedure": 1,
+      "delay_or_home_treatment": 1,
+      "unsafe_claim": 2
+    }
+  }
+}

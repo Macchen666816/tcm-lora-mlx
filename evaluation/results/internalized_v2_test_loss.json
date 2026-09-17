@@ -1,0 +1,11 @@
+{
+  "model": "models/Qwen2.5-1.5B-Instruct/mlx-4bit",
+  "adapter_path": "outputs/qwen25-lora-safety-internalized",
+  "data": "data_safety_internalized/mlx",
+  "split": "test",
+  "records": 298,
+  "loss": 1.998973,
+  "perplexity": 7.381469,
+  "mask_prompt": true,
+  "note": "Evaluation only; this script never updates or saves model weights."
+}

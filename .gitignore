@@ -5,7 +5,7 @@ __pycache__/
 .venv*/
 models/
 
-# Only keep the final adapter and the two evidence logs.
+# Only keep final adapters and evidence logs.
 outputs/*
 !outputs/qwen25-lora-full-training.log
 !outputs/qwen25-lora-safety-training.log
@@ -13,10 +13,15 @@ outputs/*
 outputs/qwen25-lora-safety/*
 !outputs/qwen25-lora-safety/adapters.safetensors
 !outputs/qwen25-lora-safety/adapter_config.json
+!outputs/qwen25-lora-safety-internalized/
+outputs/qwen25-lora-safety-internalized/*
+!outputs/qwen25-lora-safety-internalized/adapters.safetensors
+!outputs/qwen25-lora-safety-internalized/adapter_config.json
 
 # RAG microservice runtime artifacts (rebuildable from MySQL seed data).
 rag_service/index/
 *.log
+!outputs/qwen25-lora-safety-internalized-training.log
 .env
 
 # Temporary experiments and copied reference project.

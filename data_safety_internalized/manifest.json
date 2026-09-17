@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "purpose": "Prompt-diverse safety behavior internalization SFT",
+  "seed": 20260917,
+  "source_adapter": "outputs/qwen25-lora-full/adapters.safetensors",
+  "safety_seed_records": {
+    "train": 55,
+    "valid": 22
+  },
+  "prompt_variants": [
+    "explicit_safety",
+    "training_role",
+    "neutral",
+    "role_only",
+    "domain_paraphrase",
+    "no_custom_system",
+    "conflict_1",
+    "conflict_2",
+    "conflict_3"
+  ],
+  "train_records": 1095,
+  "valid_records": 298,
+  "train_safety_records": 495,
+  "train_general_records": 600,
+  "valid_safety_records": 198,
+  "valid_general_records": 100,
+  "train_prompt_distribution": {
+    "role_only": 175,
+    "training_role": 175,
+    "domain_paraphrase": 175,
+    "neutral": 175,
+    "explicit_safety": 55,
+    "no_custom_system": 175,
+    "conflict_3": 55,
+    "conflict_2": 55,
+    "conflict_1": 55
+  },
+  "valid_prompt_distribution": {
+    "no_custom_system": 42,
+    "neutral": 42,
+    "training_role": 42,
+    "conflict_1": 22,
+    "explicit_safety": 22,
+    "conflict_3": 22,
+    "role_only": 42,
+    "conflict_2": 22,
+    "domain_paraphrase": 42
+  },
+  "adversarial_test_records": 24,
+  "exact_safety_train_test_question_overlap": 0,
+  "output_sha256": {
+    "mlx/train.jsonl": "2a292721aaa4e363151dfca7a04ccbf69c12eb5df307b8b37659e7aa1d0073bc",
+    "mlx/valid.jsonl": "375e3fbdbb5bd73fe24020b535ee268b078c026bfb04fded8d0e9dd84a284abb",
+    "mlx/test.jsonl": "375e3fbdbb5bd73fe24020b535ee268b078c026bfb04fded8d0e9dd84a284abb",
+    "provenance_train.jsonl": "2eecd58a07567412d61e5b1b12a547b01a3ad2242c82427684214f63e474d087",
+    "provenance_valid.jsonl": "08bf2026e5aaf334fb86dd845ace237189cedbae905684c0830fa7f287058373"
+  }
+}
