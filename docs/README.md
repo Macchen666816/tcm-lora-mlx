@@ -34,6 +34,8 @@
 
 - [`collaboration/早期RAG接入指南.md`](collaboration/早期RAG接入指南.md)
 - [`collaboration/队友待办汇总.md`](collaboration/队友待办汇总.md)
+- [`collaboration/RAG侧待办汇总.md`](collaboration/RAG侧待办汇总.md)
+- [`collaboration/主服务调整说明.md`](collaboration/主服务调整说明.md)
 - [`collaboration/拉回力打分与可视化方案.md`](collaboration/拉回力打分与可视化方案.md)
 
 ## 结果入口
