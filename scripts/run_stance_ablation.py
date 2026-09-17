@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""八条件拔河实验跑批：模型变体 × RAG 模式，一次跑全。
+"""2×3 拉回力拔河实验跑批：模型变体 × RAG 模式，一次跑全。
 
 实验矩阵（8 格）
 ----------------
@@ -36,9 +36,9 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 QUERY_FILE = PROJECT_DIR / "data_rag_stance" / "queries_three_way.jsonl"
 OUT_DIR = PROJECT_DIR / "evaluation"
-RAG_STANCES = ("aligned", "neutral", "opposed")
+RAG_STANCES = ("aligned", "opposed")  # 中性档已剔除，拉回力实验只留正向/负向
 VARIANTS = ("base", "lora")
-STANCE_LABEL = {"aligned": "积极引导", "neutral": "模糊·无拦截", "opposed": "恶意误导"}
+STANCE_LABEL = {"aligned": "正向引导", "opposed": "负向误导"}
 VARIANT_LABEL = {"base": "Qwen2.5 基座", "lora": "中医 LoRA"}
 
 
@@ -85,7 +85,7 @@ def fetch_service_state(rag_url: str) -> dict:
 
 
 def run(rag_url: str, questions: list[dict], mode: str, top_k: int) -> list[dict]:
-    """prepare 模式只跑 6 个有 RAG 的格子（无 RAG 时检索侧无内容可看）。"""
+    """generate=6 格（2 无 RAG + 4 有 RAG）；prepare=4 格（无 RAG 时检索侧无内容可看）。"""
     cells = [(variant, stance) for variant in VARIANTS for stance in RAG_STANCES]
     if mode == "generate":
         cells = [(variant, None) for variant in VARIANTS] + cells
@@ -157,15 +157,15 @@ def _clip(text: str, limit: int = 300) -> str:
 def write_markdown(results: list[dict], mode: str, path: Path, service_state: dict) -> None:
     instruction = service_state.get("rag_instruction_enabled")
     lines = [
-        f"# 八条件拔河实验（{mode}）",
+        f"# 拉回力实验 · 2×3（{mode}）",
         "",
-        f"- 问题数：{len(results)}，每题 {8 if mode == 'generate' else 6} 次调用",
+        f"- 问题数：{len(results)}，每题 {6 if mode == 'generate' else 4} 次调用",
         f"- 生成时间：{time.strftime('%Y-%m-%d %H:%M:%S')}",
         f"- RAG 前置指令：{'已开启' if instruction else '**已关闭（纯资料 + 问题）**'}"
         + f"｜默认立场 {service_state.get('default_stance', '—')}"
         + f"｜文档 {service_state.get('document_count', '—')} 条",
         "",
-        "> 矩阵：行 = 模型变体，列 = RAG 模式。列「无 RAG」为 `rag_enabled=false`。",
+        "> 矩阵：行 = 模型变体（基座/LoRA），列 = RAG（正向/负向/无）。中性档已剔除。",
         "> 提示词层（RAG 前置指令 / webapp system prompt）必须中性且固定，否则结果无法归因。",
         "",
     ]
@@ -173,7 +173,7 @@ def write_markdown(results: list[dict], mode: str, path: Path, service_state: di
     for index, record in enumerate(results, start=1):
         arms = record["arms"]
         lines += [f"## {index}. {record['question']}", ""]
-        lines += ["| 模型 \\ RAG | 无 RAG | 积极引导 | 模糊·无拦截 | 恶意误导 |", "|---|---|---|---|---|"]
+        lines += ["| 模型 \\ RAG | 无 RAG | 正向引导 | 负向误导 |", "|---|---|---|---|"]
         for variant in VARIANTS:
             cells = []
             for stance in (None, *RAG_STANCES):
@@ -211,7 +211,7 @@ def write_markdown(results: list[dict], mode: str, path: Path, service_state: di
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="八条件拔河实验跑批")
+    parser = argparse.ArgumentParser(description="拉回力实验（2×3）跑批")
     parser.add_argument("--rag-url", default="http://127.0.0.1:8090")
     parser.add_argument("--mode", choices=("prepare", "generate"), default="prepare")
     parser.add_argument("--top-k", type=int, default=3)
@@ -220,7 +220,7 @@ def main() -> int:
     args = parser.parse_args()
 
     questions = load_questions(None if args.all else args.limit)
-    cells = 8 if args.mode == "generate" else 6
+    cells = 6 if args.mode == "generate" else 4
     service_state = fetch_service_state(args.rag_url)
     print(f"服务端状态：{service_state}")
     print(f"模式：{args.mode}｜问题数：{len(questions)}｜每题 {cells} 格｜共 {len(questions) * cells} 次请求")
@@ -229,12 +229,12 @@ def main() -> int:
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    jsonl_path = OUT_DIR / f"ablation8_{args.mode}_{stamp}.jsonl"
+    jsonl_path = OUT_DIR / f"ablation23_{args.mode}_{stamp}.jsonl"
     with jsonl_path.open("w", encoding="utf-8") as handle:
         handle.write(json.dumps({"_service_state": service_state}, ensure_ascii=False) + "\n")
         for record in results:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-    md_path = OUT_DIR / f"ablation8_{args.mode}_{stamp}.md"
+    md_path = OUT_DIR / f"ablation23_{args.mode}_{stamp}.md"
     write_markdown(results, args.mode, md_path, service_state)
 
     print(f"原始结果：{jsonl_path}")

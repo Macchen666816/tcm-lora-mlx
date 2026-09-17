@@ -276,9 +276,8 @@ el('docList').addEventListener('click', (event) => {
 /* ---------- 三模式并排对比 ---------- */
 
 const CMP_MODES = [
-  { stance: 'aligned', name: '同向 · 安全对齐' },
-  { stance: 'neutral', name: '中立 · 无安全拦截' },
-  { stance: 'opposed', name: '反向 · 恶意诱导' },
+  { stance: 'aligned', name: '正向引导' },
+  { stance: 'opposed', name: '负向误导' },
 ];
 
 async function runCompare() {
@@ -331,10 +330,10 @@ async function runCompare() {
   }).join('');
 
   el('cmpMeta').textContent =
-    `问题「${query}」已用三种模式各检索一次（共 3 次独立调用，每次只用一个部分）`;
+    `问题「${query}」已用正向/负向各检索一次（共 2 次独立调用，每次只用一个部分）`;
   el('cmpMeta').classList.remove('hidden');
   button.disabled = false;
-  button.textContent = '并排跑三种模式';
+  button.textContent = '并排跑两档';
 }
 
 el('cmpBtn').addEventListener('click', runCompare);
@@ -343,8 +342,8 @@ el('cmpInput').addEventListener('keydown', (event) => { if (event.key === 'Enter
 
 /* ---------- 八条件田字格（拔河实验总览） ---------- */
 
-const GRID_STANCES = ['aligned', 'neutral', 'opposed'];
-const GRID_STANCE_LABEL = { aligned: '积极引导', neutral: '模糊·无拦截', opposed: '恶意误导' };
+const GRID_STANCES = ['aligned', 'opposed'];  // 中性档已剔除，拉回力实验只留正向/负向
+const GRID_STANCE_LABEL = { aligned: '正向引导', opposed: '负向误导' };
 const gridState = { arms: {}, stance: 'aligned', running: false };
 
 function gridCellHtml(key, who, isTop) {
@@ -413,7 +412,7 @@ async function runGrid() {
   gridState.running = true;
   button.disabled = true;
 
-  // 一次跑全部 8 格：2（无 RAG）× 2 变体 + 3 立场 × 2 变体
+  // 一次跑全部 6 格：2（无 RAG）× 2 变体 + 2 立场 × 2 变体
   const jobs = [];
   for (const variant of ['base', 'lora']) {
     jobs.push({ key: `${variant}-none`, payload: { query, top_k: topK, variant, rag_enabled: false } });
@@ -454,13 +453,13 @@ async function runGrid() {
 
   const modes = new Set(Object.values(gridState.arms).map((a) => a.inference_mode).filter(Boolean));
   el('gridMeta').textContent =
-    `问题「${query}」已跑完全部 8 格（8 次独立调用）` +
+    `问题「${query}」已跑完全部 6 格（6 次独立调用）` +
     (modes.size === 1 && modes.has('degraded-mock')
       ? ' —— ⚠️ 全部为降级模拟（LoRA 不在线），仅验证链路，不可用于结论'
       : '');
   el('gridMeta').classList.remove('hidden');
   button.disabled = false;
-  button.textContent = '跑 8 种条件';
+  button.textContent = '跑 6 格';
   gridState.running = false;
 }
 

@@ -60,18 +60,17 @@
   <!-- 八条件田字格 -->
   <section class="card">
     <div class="card-head">
-      <h2>拔河实验：八条件田字格</h2>
-      <span class="hint">上排＝无 RAG（固定）；下排＝有 RAG，三联按钮切换</span>
+      <h2>拉回力实验 · 2×3 田字格</h2>
+      <span class="hint">上排＝无 RAG（固定）；下排＝有 RAG（正向/负向），两档按钮切换</span>
     </div>
     <div class="row">
-      <input id="gridInput" type="text" placeholder="输入一个中医问题，一次跑全部 8 种条件">
+      <input id="gridInput" type="text" placeholder="输入一个中医问题，一次跑全部 6 格">
       <input id="gridTopK" type="number" min="1" max="8" value="3" title="top_k">
-      <button id="gridBtn" class="btn primary">跑 8 种条件</button>
+      <button id="gridBtn" class="btn primary">跑 6 格</button>
     </div>
     <div class="grid-switch" id="gridSwitch">
-      <button class="gs-btn active" data-stance="aligned">积极引导</button>
-      <button class="gs-btn" data-stance="neutral">模糊 · 无安全拦截</button>
-      <button class="gs-btn" data-stance="opposed">恶意误导</button>
+      <button class="gs-btn active" data-stance="aligned">正向引导</button>
+      <button class="gs-btn" data-stance="opposed">负向误导</button>
     </div>
     <div id="gridMeta" class="meta hidden"></div>
     <div class="grid2x2">
@@ -86,13 +85,13 @@
   <!-- 三模式并排对比 -->
   <section class="card">
     <div class="card-head">
-      <h2>三模式并排对比（消融实验）</h2>
-      <span class="hint">同一问题 → 三种立场各检索一次，结果并排</span>
+      <h2>两档并排对比（正向 / 负向）</h2>
+      <span class="hint">同一问题 → 正向/负向各检索一次，结果并排</span>
     </div>
     <div class="row">
-      <input id="cmpInput" type="text" placeholder="输入一个中医问题，三种模式会各检索一次">
+      <input id="cmpInput" type="text" placeholder="输入一个中医问题，正向/负向各检索一次">
       <input id="cmpTopK" type="number" min="1" max="8" value="2" title="top_k">
-      <button id="cmpBtn" class="btn primary">并排跑三种模式</button>
+      <button id="cmpBtn" class="btn primary">并排跑两档</button>
     </div>
     <div id="cmpMeta" class="meta hidden"></div>
     <div class="compare-grid" id="cmpGrid"></div>
